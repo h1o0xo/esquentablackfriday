@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 40" width="160" height="40">
+  <defs>
+    <linearGradient id="bfGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ff3b30"/>
+      <stop offset="100%" stop-color="#ff9500"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="2" width="156" height="36" rx="6" fill="#111111" stroke="#333333" stroke-width="1.5" stroke-dasharray="4 2"/>
+  <circle cx="22" cy="20" r="11" fill="url(#bfGrad)"/>
+  <path d="M22 13 L18 21 L22 21 L21 27 L26 19 L22 19 Z" fill="#ffffff"/>
+  <text x="40" y="24" font-family="'Inter', -apple-system, sans-serif" font-size="12" font-weight="800" fill="#ffffff" letter-spacing="0.5">SUA LOGO</text>
+</svg>
