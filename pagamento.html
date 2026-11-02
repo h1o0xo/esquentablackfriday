@@ -94,175 +94,175 @@
         </div>
       </section>
 
-      <!-- CARD 2: DADOS DE ENTREGA -->
+     <!-- CARD 2: DADOS DE ENTREGA -->
       <section class="co-card">
-        <div class="co-card-title">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"></path>
-            <circle cx="12" cy="10" r="3"></circle>
-          </svg>
-          Endereço de Entrega
-        </div>
+  <div class="co-card-title">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"></path>
+      <circle cx="12" cy="10" r="3"></circle>
+    </svg>
+    Endereço de Entrega
+  </div>
 
-        <div class="co-form-grid">
-          <div class="co-field full">
-            <label class="co-label" for="cliNome">Nome Completo *</label>
-            <input type="text" id="cliNome" class="co-input" placeholder="Ex: Maria da Silva" required>
-          </div>
+  <div class="co-form-grid">
+    <div class="co-field full">
+      <label class="co-label" for="cliNome">Nome Completo *</label>
+      <input type="text" id="cliNome" class="co-input" placeholder="Ex: Maria da Silva" required>
+    </div>
 
-          <!-- CPF com Máscara e Validação Matemática -->
-          <div class="co-field">
-            <label class="co-label" for="cliC2">CPF *</label>
-            <input 
-              type="tel" 
-              id="cliC2" 
-              class="co-input" 
-              placeholder="000.000.000-00" 
-              maxlength="14" 
-              oninput="mascaraCPF(this)" 
-              onblur="validarCPF(this)"
-              required>
-            <span id="cpfErro" style="color: #e53e3e; font-size: 12px; display: none; margin-top: 4px;">CPF inválido</span>
-          </div>
+    <!-- CPF com Máscara e Validação -->
+    <div class="co-field">
+      <label class="co-label" for="cliC2">CPF *</label>
+      <input 
+        type="tel" 
+        id="cliC2" 
+        class="co-input" 
+        placeholder="000.000.000-00" 
+        maxlength="14" 
+        oninput="mascaraCPF(this)" 
+        onblur="validarCPF(this)"
+        required>
+      <span id="cpfErro" style="color: #e53e3e; font-size: 12px; display: none; margin-top: 4px;">CPF inválido</span>
+    </div>
 
-          <!-- Celular / WhatsApp -->
-          <div class="co-field">
-            <label class="co-label" for="cliTel">WhatsApp / Celular *</label>
-            <input 
-              type="tel" 
-              id="cliTel" 
-              class="co-input" 
-              placeholder="(00) 00000-0000" 
-              maxlength="15" 
-              oninput="mascaraTel(this)"
-              required>
-          </div>
+    <!-- Celular / WhatsApp -->
+    <div class="co-field">
+      <label class="co-label" for="cliTel">WhatsApp / Celular *</label>
+      <input 
+        type="tel" 
+        id="cliTel" 
+        class="co-input" 
+        placeholder="(00) 00000-0000" 
+        maxlength="15" 
+        oninput="mascaraTel(this)"
+        required>
+    </div>
 
-          <!-- CEP -->
-          <div class="co-field">
-            <label class="co-label" for="cliCep">CEP * (Busca automática)</label>
-            <input 
-              type="tel" 
-              id="cliCep" 
-              class="co-input" 
-              placeholder="00000-000" 
-              maxlength="9" 
-              oninput="mascaraCEP(this)"
-              required>
-          </div>
+    <!-- CEP -->
+    <div class="co-field">
+      <label class="co-label" for="cliCep">CEP * (Busca automática)</label>
+      <input 
+        type="tel" 
+        id="cliCep" 
+        class="co-input" 
+        placeholder="00000-000" 
+        maxlength="9" 
+        oninput="mascaraCEP(this)"
+        required>
+    </div>
 
-          <div class="co-field">
-            <label class="co-label" for="cliNumero">Número *</label>
-            <input type="text" id="cliNumero" class="co-input" placeholder="Ex: 123" required>
-          </div>
+    <div class="co-field">
+      <label class="co-label" for="cliNumero">Número *</label>
+      <input type="text" id="cliNumero" class="co-input" placeholder="Ex: 123" required>
+    </div>
 
-          <div class="co-field full">
-            <label class="co-label" for="cliRua">Rua / Avenida *</label>
-            <input type="text" id="cliRua" class="co-input" placeholder="Nome da rua" required>
-          </div>
+    <div class="co-field full">
+      <label class="co-label" for="cliRua">Rua / Avenida *</label>
+      <input type="text" id="cliRua" class="co-input" placeholder="Nome da rua" required>
+    </div>
 
-          <div class="co-field">
-            <label class="co-label" for="cliComplemento">Complemento</label>
-            <input type="text" id="cliComplemento" class="co-input" placeholder="Apto, Bloco (opcional)">
-          </div>
+    <div class="co-field">
+      <label class="co-label" for="cliComplemento">Complemento</label>
+      <input type="text" id="cliComplemento" class="co-input" placeholder="Apto, Bloco (opcional)">
+    </div>
 
-          <div class="co-field">
-            <label class="co-label" for="cliBairro">Bairro *</label>
-            <input type="text" id="cliBairro" class="co-input" placeholder="Bairro" required>
-          </div>
+    <div class="co-field">
+      <label class="co-label" for="cliBairro">Bairro *</label>
+      <input type="text" id="cliBairro" class="co-input" placeholder="Bairro" required>
+    </div>
 
-          <div class="co-field">
-            <label class="co-label" for="cliCidade">Cidade *</label>
-            <input type="text" id="cliCidade" class="co-input" placeholder="Cidade" required>
-          </div>
+    <div class="co-field">
+      <label class="co-label" for="cliCidade">Cidade *</label>
+      <input type="text" id="cliCidade" class="co-input" placeholder="Cidade" required>
+    </div>
 
-          <!-- UF -->
-          <div class="co-field">
-            <label class="co-label" for="cliUf">Estado (UF) *</label>
-            <input 
-              type="text" 
-              id="cliUf" 
-              class="co-input" 
-              placeholder="UF" 
-              maxlength="2" 
-              oninput="mascaraUF(this)"
-              required>
-          </div>
-        </div>
-      </section>
+    <!-- UF -->
+    <div class="co-field">
+      <label class="co-label" for="cliUf">Estado (UF) *</label>
+      <input 
+        type="text" 
+        id="cliUf" 
+        class="co-input" 
+        placeholder="UF" 
+        maxlength="2" 
+        oninput="mascaraUF(this)"
+        required>
+    </div>
+  </div>
+</section>
 
-      <!-- SCRIPTS DE MÁSCARA E VALIDAÇÃO DE CPF/ENDEREÇO -->
-      <script>
-        // 1. Máscara do CPF
-        function mascaraCPF(input) {
-          input.value = input.value
-            .replace(/\D/g, '')
-            .replace(/(\d{3})(\d)/, '$1.$2')
-            .replace(/(\d{3})(\d)/, '$1.$2')
-            .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-        }
+<!-- COLOQUE O SCRIPT AQUI (LOGO ABAIXO DA SECTION) -->
+<script>
+  // 1. Máscara do CPF
+  function mascaraCPF(input) {
+    input.value = input.value
+      .replace(/\D/g, '')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+  }
 
-        // 2. Validação matemática do CPF (detecta CPF falso)
-        function validarCPF(input) {
-          const cpf = input.value.replace(/\D/g, '');
-          const erroSpan = document.getElementById('cpfErro');
+  // 2. Validação matemática do CPF (detecta CPF falso)
+  function validarCPF(input) {
+    const cpf = input.value.replace(/\D/g, '');
+    const erroSpan = document.getElementById('cpfErro');
 
-          if (!cpf) return;
+    if (!cpf) return;
 
-          let valido = true;
+    let valido = true;
 
-          // Rejeita CPFs com menos de 11 dígitos ou números repetidos (ex: 111.111.111-11)
-          if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) {
-            valido = false;
-          } else {
-            let soma = 0;
-            for (let i = 0; i < 9; i++) soma += parseInt(cpf.charAt(i)) * (10 - i);
-            let resto = 11 - (soma % 11);
-            let digito1 = (resto === 10 || resto === 11) ? 0 : resto;
+    // Rejeita CPFs com menos de 11 dígitos ou números repetidos (ex: 111.111.111-11)
+    if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) {
+      valido = false;
+    } else {
+      let soma = 0;
+      for (let i = 0; i < 9; i++) soma += parseInt(cpf.charAt(i)) * (10 - i);
+      let resto = 11 - (soma % 11);
+      let digito1 = (resto === 10 || resto === 11) ? 0 : resto;
 
-            soma = 0;
-            for (let i = 0; i < 10; i++) soma += parseInt(cpf.charAt(i)) * (11 - i);
-            resto = 11 - (soma % 11);
-            let digito2 = (resto === 10 || resto === 11) ? 0 : resto;
+      soma = 0;
+      for (let i = 0; i < 10; i++) soma += parseInt(cpf.charAt(i)) * (11 - i);
+      resto = 11 - (soma % 11);
+      let digito2 = (resto === 10 || resto === 11) ? 0 : resto;
 
-            if (digito1 !== parseInt(cpf.charAt(9)) || digito2 !== parseInt(cpf.charAt(10))) {
-              valido = false;
-            }
-          }
+      if (digito1 !== parseInt(cpf.charAt(9)) || digito2 !== parseInt(cpf.charAt(10))) {
+        valido = false;
+      }
+    }
 
-          if (!valido) {
-            input.setCustomValidity('CPF inválido');
-            input.style.borderColor = '#e53e3e';
-            if (erroSpan) erroSpan.style.display = 'block';
-          } else {
-            input.setCustomValidity('');
-            input.style.borderColor = '';
-            if (erroSpan) erroSpan.style.display = 'none';
-          }
-        }
+    if (!valido) {
+      input.setCustomValidity('CPF inválido');
+      input.style.borderColor = '#e53e3e';
+      if (erroSpan) erroSpan.style.display = 'block';
+    } else {
+      input.setCustomValidity('');
+      input.style.borderColor = '';
+      if (erroSpan) erroSpan.style.display = 'none';
+    }
+  }
 
-        // 3. Máscara de Telefone / Celular
-        function mascaraTel(input) {
-          input.value = input.value
-            .replace(/\D/g, '')
-            .replace(/^(\d{2})(\d)/g, '($1) $2')
-            .replace(/(\d{5})(\d{4})$/, '$1-$2');
-        }
+  // 3. Máscara de Telefone / Celular
+  function mascaraTel(input) {
+    input.value = input.value
+      .replace(/\D/g, '')
+      .replace(/^(\d{2})(\d)/g, '($1) $2')
+      .replace(/(\d{5})(\d{4})$/, '$1-$2');
+  }
 
-        // 4. Máscara de CEP
-        function mascaraCEP(input) {
-          input.value = input.value
-            .replace(/\D/g, '')
-            .replace(/^(\d{5})(\d)/, '$1-$2');
-        }
+  // 4. Máscara de CEP
+  function mascaraCEP(input) {
+    input.value = input.value
+      .replace(/\D/g, '')
+      .replace(/^(\d{5})(\d)/, '$1-$2');
+  }
 
-        // 5. Máscara de UF (apenas 2 letras maiúsculas)
-        function mascaraUF(input) {
-          input.value = input.value
-            .replace(/[^a-zA-Z]/g, '')
-            .toUpperCase();
-        }
-      </script>
+  // 5. Máscara de UF (apenas 2 letras maiúsculas)
+  function mascaraUF(input) {
+    input.value = input.value
+      .replace(/[^a-zA-Z]/g, '')
+      .toUpperCase();
+  }
+</script>>
 
       <!-- CARD 3: FORMA DE PAGAMENTO -->
       <section class="co-card">
@@ -286,21 +286,8 @@
             </div>
             <span class="co-method-badge">Recomendado</span>
           </div>
-        </div>
 
-      <!-- Opção Cartão de Crédito -->
-          <div class="co-method" data-method="cartao">
-            <div class="co-method-l">
-              <input type="radio" name="pagamento" class="co-method-radio">
-              <div>
-                <div class="co-method-title">Cartão de Crédito</div>
-                <div class="co-method-sub">Em até 5x de R$ 9,58</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-       <!-- Opção Cartão de Crédito -->
+          <!-- Opção Cartão de Crédito -->
           <div class="co-method" data-method="cartao">
             <div class="co-method-l">
               <input type="radio" name="pagamento" class="co-method-radio">
