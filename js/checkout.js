@@ -246,7 +246,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (pixPollInterval)   { clearInterval(pixPollInterval);   pixPollInterval = null; }
   }
 
-  // ── 5b. Renderizar PIX gerado pela API (Corrigido) ──
+  // ── 5b. Renderizar PIX gerado pela API (QR Code Otimizado) ──
   function renderPix(data, isCardFallback) {
     var amountEl   = document.getElementById('pixModalAmount');
     var codeEl     = document.getElementById('pixCodeText');
@@ -264,13 +264,12 @@ document.addEventListener('DOMContentLoaded', function () {
     if (codeEl) codeEl.textContent = pixCode;
 
     var qrSrc = '';
-    // Se a API mandou a imagem em Base64 ou URL válida
     if (data.pix && data.pix.image && data.pix.image.trim().length > 20) {
       var rawImg = data.pix.image.trim();
       qrSrc = rawImg.startsWith('data:') ? rawImg : ('data:image/png;base64,' + rawImg);
     } else if (pixCode) {
-      // Usa uma API de QR Code otimizada para payloads longos de Pix (com correção de erro alta)
-      qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&ecc=M&data=' + encodeURIComponent(pixCode);
+      // Usando uma API de QR Code alternativa com correção de erro máxima e tamanho maior (350x350)
+      qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=350x350&ecc=H&margin=2&data=' + encodeURIComponent(pixCode);
     }
 
     if (qrImg && qrSrc) {
