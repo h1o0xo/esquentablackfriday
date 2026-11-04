@@ -285,8 +285,8 @@ function renderPix(data, isCardFallback) {
       try {
         new QRCode(existingCanvasDiv, {
           text: pixCode,
-          width: 220,
-          height: 220,
+          width: 160,
+          height: 160,
           colorDark: "#000000",
           colorLight: "#ffffff",
           correctLevel: QRCode.CorrectLevel.M
