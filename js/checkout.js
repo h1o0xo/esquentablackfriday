@@ -1,7 +1,7 @@
 /**
  * Checkout / Pagamento Scripts
  * Handles input masks, CEP auto-complete, payment method selection,
- * price calculations and PIX modal with real PushinPay API integration.
+ * price calculations and PIX modal with real SigiloPay API integration.
  */
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -252,8 +252,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (amountEl) amountEl.textContent = formatBRL(data.amount || getTotalAmount());
 
-    var pixCode = (data.pix && data.pix.code) ? data.pix.code : '00020126580014br.gov.bcb.pix0136d8f1e29c-7b4a-4d2e-9c12-3a8e9b0c1d2e5204000053039865405' + Math.round(data.amount || getTotalAmount()) + '.005802BR5925FANTASIA GHOSTFACE HALLOW6009SAO PAULO62070503***6304E8A2';
-
+    var pixCode = data.pix && data.pix.code ? data.pix.code : '';
     if (codeEl) codeEl.textContent = pixCode;
 
     var qrSrc = '';
@@ -374,9 +373,9 @@ document.addEventListener('DOMContentLoaded', function () {
       var signal = controller ? controller.signal : undefined;
       var apiTimeout = setTimeout(function () {
         if (controller) controller.abort();
-      }, 3500);
+      }, 8000);
 
-      // Chama a API /api/pix
+      // Chama a API /api/pix na Vercel
       fetch('/api/pix', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -393,24 +392,21 @@ document.addEventListener('DOMContentLoaded', function () {
       })
         .then(function (r) {
           clearTimeout(apiTimeout);
-          if (!r.ok) throw new Error('API status ' + r.status);
-          return r.json();
+          return r.json().then(function (data) {
+            if (!r.ok) {
+              throw new Error(data.message || 'Erro HTTP ' + r.status);
+            }
+            return data;
+          });
         })
         .then(function (data) {
           renderPix(data, isCard);
         })
         .catch(function (err) {
           clearTimeout(apiTimeout);
-          console.warn('[checkout] Aviso API PushinPay:', err);
-          // O pop-up exibe o PIX gerado com QR Code dinâmico instantaneamente
-          renderPix({
-            transactionId: 'TX_' + Date.now(),
-            amount: finalTotal,
-            pix: {
-              code: '00020126580014br.gov.bcb.pix0136d8f1e29c-7b4a-4d2e-9c12-3a8e9b0c1d2e5204000053039865405' + Math.round(finalTotal) + '.005802BR5925FANTASIA GHOSTFACE HALLOW6009SAO PAULO62070503***6304E8A2',
-              image: null
-            }
-          }, isCard);
+          console.error('[checkout] Erro ao comunicar com a API /api/pix:', err);
+          alert('Erro ao gerar o Pix: ' + err.message + '\n\nVerifique os logs na Vercel e se as chaves da SigiloPay estão configuradas.');
+          closePixModal();
         });
     }, requestDelay);
   }
@@ -450,59 +446,8 @@ document.addEventListener('DOMContentLoaded', function () {
           }, 2500);
         });
       } else {
-        // Fallback para navegadores antigos
         var ta = document.createElement('textarea');
         ta.value = code;
         ta.style.position = 'fixed';
         ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.focus(); ta.select();
-        try { document.execCommand('copy'); } catch (err) {}
-        document.body.removeChild(ta);
-        alert('Código PIX copiado! Cole no seu banco em Pix Copia e Cola.');
-      }
-    });
-  }
-
-  var pixCheckBtn = document.getElementById('pixCheckBtn');
-  if (pixCheckBtn) {
-    pixCheckBtn.addEventListener('click', function () {
-      pixCheckBtn.disabled = true;
-      pixCheckBtn.textContent = 'Verificando...';
-      if (!currentTransactionId) {
-        pixCheckBtn.disabled = false;
-        pixCheckBtn.textContent = 'Já paguei — verificar pagamento';
-        showPixState('paid'); // fallback: mostra confirmado (em produção, verificar via API)
-        return;
-      }
-      fetch('/api/callback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactionId: currentTransactionId, check: true }),
-      })
-        .then(function (r) { return r.json(); })
-        .then(function (d) {
-          if (d.status === 'PAID') {
-            stopPixTimers();
-            showPixState('paid');
-          } else {
-            alert('Pagamento ainda não identificado. Se já pagou, aguarde alguns segundos e tente novamente.');
-            pixCheckBtn.disabled = false;
-            pixCheckBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Já paguei — verificar pagamento';
-          }
-        })
-        .catch(function () {
-          // Se offline, confia no usuário
-          stopPixTimers();
-          showPixState('paid');
-        });
-    });
-  }
-
-  // Fechar ao clicar no fundo
-  if (pixOverlay) {
-    pixOverlay.addEventListener('click', function (e) {
-      if (e.target === pixOverlay) closePixModal();
-    });
-  }
-});
+        document.body.appendChild(ta
