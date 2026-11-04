@@ -246,8 +246,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (pixPollInterval)   { clearInterval(pixPollInterval);   pixPollInterval = null; }
   }
 
-// ── 5b. Renderizar PIX com QR Code Perfeito via Biblioteca Nativa ──
-  function renderPix(data, isCardFallback) {
+function renderPix(data, isCardFallback) {
     var amountEl   = document.getElementById('pixModalAmount');
     var codeEl     = document.getElementById('pixCodeText');
     var qrImg      = document.getElementById('pixQrImg');
@@ -261,13 +260,16 @@ document.addEventListener('DOMContentLoaded', function () {
     var pixCode = (data.pix && data.pix.code) ? data.pix.code : '';
     if (codeEl) codeEl.textContent = pixCode;
 
-    // Limpa a imagem antiga e gera o QR Code limpo e perfeito na tela
+    // OCULTA DEFINITIVAMENTE A IMAGEM ANTIGA DE BAIXO
+    if (qrImg) {
+      qrImg.style.display = 'none';
+      qrImg.src = '';
+    }
+    if (qrFallback) qrFallback.style.display = 'none';
+
+    // Cria ou atualiza apenas o QR code limpo e perfeito em cima
     var qrContainer = qrImg ? qrImg.parentElement : null;
     if (qrContainer && pixCode) {
-      // Remove imagem anterior se existir
-      if (qrImg) qrImg.style.display = 'none';
-      
-      // Cria um container limpo para o QR Code SVG/Canvas da biblioteca
       var existingCanvasDiv = document.getElementById('nativeQrCanvas');
       if (!existingCanvasDiv) {
         existingCanvasDiv = document.createElement('div');
@@ -275,12 +277,11 @@ document.addEventListener('DOMContentLoaded', function () {
         existingCanvasDiv.style.display = 'flex';
         existingCanvasDiv.style.justifyContent = 'center';
         existingCanvasDiv.style.margin = '10px 0';
-        qrContainer.insertBefore(existingCanvasDiv, qrImg);
+        qrContainer.appendChild(existingCanvasDiv);
       } else {
         existingCanvasDiv.innerHTML = '';
       }
 
-      // Gera o QR Code com alta qualidade usando a biblioteca qrcode.js
       try {
         new QRCode(existingCanvasDiv, {
           text: pixCode,
@@ -294,6 +295,8 @@ document.addEventListener('DOMContentLoaded', function () {
         console.error("Erro ao gerar QR code nativo:", e);
       }
     }
+
+    // Restante do código da função...
 
     if (isCardFallback) {
       if (cardAlert) cardAlert.style.display = 'flex';
