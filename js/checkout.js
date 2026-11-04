@@ -246,6 +246,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (pixPollInterval)   { clearInterval(pixPollInterval);   pixPollInterval = null; }
   }
 
+  // ── 5b. Renderizar PIX gerado pela API (Corrigido) ──
   function renderPix(data, isCardFallback) {
     var amountEl   = document.getElementById('pixModalAmount');
     var codeEl     = document.getElementById('pixCodeText');
@@ -258,15 +259,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (amountEl) amountEl.textContent = formatBRL(data.amount || getTotalAmount());
 
-    var pixCode = data.pix && data.pix.code ? data.pix.code : '';
+    // Pega o código Pix Copia e Cola enviado pelo servidor da SigiloPay
+    var pixCode = (data.pix && data.pix.code) ? data.pix.code : '';
     if (codeEl) codeEl.textContent = pixCode;
 
     var qrSrc = '';
+    // Se a API mandou a imagem em Base64 ou URL válida
     if (data.pix && data.pix.image && data.pix.image.trim().length > 20) {
       var rawImg = data.pix.image.trim();
       qrSrc = rawImg.startsWith('data:') ? rawImg : ('data:image/png;base64,' + rawImg);
     } else if (pixCode) {
-      qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=4&data=' + encodeURIComponent(pixCode);
+      // Usa uma API de QR Code otimizada para payloads longos de Pix (com correção de erro alta)
+      qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&ecc=M&data=' + encodeURIComponent(pixCode);
     }
 
     if (qrImg && qrSrc) {
