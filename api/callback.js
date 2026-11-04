@@ -1,9 +1,9 @@
 /**
- * Vercel Serverless Function — SigiloPay / PushinPay Callback
+ * Vercel Serverless Function — SigiloPay Callback
  * POST /api/callback
  *
- * Receives payment status updates from the payment gateway.
- * Extend this function to update your database, send emails, etc.
+ * Recebe as atualizações de status de pagamento da SigiloPay.
+ * Estenda esta função para atualizar banco de dados, enviar e-mails, etc.
  */
 
 export default async function handler(req, res) {
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
   });
 
   /**
-   * Possible status values (extend as needed):
+   * Possíveis valores de status:
    *
    * PENDING   — aguardando pagamento
    * PAID      — pago
@@ -41,11 +41,12 @@ export default async function handler(req, res) {
    */
 
   if (status === 'PAID') {
-    // TODO: marcar pedido como pago no seu banco de dados
-    // TODO: enviar e-mail/WhatsApp de confirmação ao cliente
-    console.log('[callback] ✓ Pagamento confirmado:', transactionId);
+    // TODO: marcar pedido como pago no banco de dados
+    // TODO: enviar confirmação por WhatsApp/e-mail ao cliente
+    console.log('[callback] ✓ Pagamento confirmado — JBL PartyBox 520:', transactionId);
+    console.log('[callback] Dados do pedido:', metadata);
   }
 
-  // Always return 200 so Gateway stops retrying
+  // Sempre retorna 200 para a SigiloPay parar de reenviar
   return res.status(200).json({ received: true });
 }
