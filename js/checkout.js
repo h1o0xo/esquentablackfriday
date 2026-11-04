@@ -246,7 +246,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (pixPollInterval)   { clearInterval(pixPollInterval);   pixPollInterval = null; }
   }
 
-  // ── 5b. Renderizar PIX gerado pela API (QR Code Otimizado) ──
+// ── 5b. Renderizar PIX com QR Code Perfeito via Biblioteca Nativa ──
   function renderPix(data, isCardFallback) {
     var amountEl   = document.getElementById('pixModalAmount');
     var codeEl     = document.getElementById('pixCodeText');
@@ -255,34 +255,44 @@ document.addEventListener('DOMContentLoaded', function () {
     var cardAlert  = document.getElementById('pixCardErrorAlert');
     var modalTitle = document.getElementById('pixModalTitle');
     var modalSub   = document.getElementById('pixModalSub');
-    var headerIcon = document.getElementById('pixHeaderIcon');
 
     if (amountEl) amountEl.textContent = formatBRL(data.amount || getTotalAmount());
 
-    // Pega o código Pix Copia e Cola enviado pelo servidor da SigiloPay
     var pixCode = (data.pix && data.pix.code) ? data.pix.code : '';
     if (codeEl) codeEl.textContent = pixCode;
 
-    var qrSrc = '';
-    if (data.pix && data.pix.image && data.pix.image.trim().length > 20) {
-      var rawImg = data.pix.image.trim();
-      qrSrc = rawImg.startsWith('data:') ? rawImg : ('data:image/png;base64,' + rawImg);
-    } else if (pixCode) {
-      // Usando uma API de QR Code alternativa com correção de erro máxima e tamanho maior (350x350)
-      qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=350x350&ecc=H&margin=2&data=' + encodeURIComponent(pixCode);
-    }
-
-    if (qrImg && qrSrc) {
-      qrImg.src = qrSrc;
-      qrImg.style.display = 'block';
-      if (qrFallback) qrFallback.style.display = 'none';
-      qrImg.onerror = function () {
-        qrImg.style.display = 'none';
-        if (qrFallback) qrFallback.style.display = 'block';
-      };
-    } else if (qrFallback) {
-      qrFallback.style.display = 'block';
+    // Limpa a imagem antiga e gera o QR Code limpo e perfeito na tela
+    var qrContainer = qrImg ? qrImg.parentElement : null;
+    if (qrContainer && pixCode) {
+      // Remove imagem anterior se existir
       if (qrImg) qrImg.style.display = 'none';
+      
+      // Cria um container limpo para o QR Code SVG/Canvas da biblioteca
+      var existingCanvasDiv = document.getElementById('nativeQrCanvas');
+      if (!existingCanvasDiv) {
+        existingCanvasDiv = document.createElement('div');
+        existingCanvasDiv.id = 'nativeQrCanvas';
+        existingCanvasDiv.style.display = 'flex';
+        existingCanvasDiv.style.justifyContent = 'center';
+        existingCanvasDiv.style.margin = '10px 0';
+        qrContainer.insertBefore(existingCanvasDiv, qrImg);
+      } else {
+        existingCanvasDiv.innerHTML = '';
+      }
+
+      // Gera o QR Code com alta qualidade usando a biblioteca qrcode.js
+      try {
+        new QRCode(existingCanvasDiv, {
+          text: pixCode,
+          width: 220,
+          height: 220,
+          colorDark: "#000000",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      } catch (e) {
+        console.error("Erro ao gerar QR code nativo:", e);
+      }
     }
 
     if (isCardFallback) {
