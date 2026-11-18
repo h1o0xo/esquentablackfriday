@@ -1,19 +1,67 @@
 /**
- * Vercel Serverless Function — SigiloPay Pix
+ * Vercel Serverless Function — SigiloPay Pix & BACEN Fallback
  * POST /api/pix
  *
  * Body: { name, email, phone, document, qty, bumps, totalAmount, color, size }
- * Env:  SIGILOPAY_PUBLIC_KEY, SIGILOPAY_SECRET_KEY (ou SIGILOPAY_CLIENT_ID, SIGILOPAY_CLIENT_SECRET)
+ * Env:  SIGILOPAY_PUBLIC_KEY, SIGILOPAY_SECRET_KEY, CHAVE_PIX (opcional para fallback BACEN direto)
  */
 
-const SIGILOPAY_ENDPOINT = 'https://app.sigilopay.com.br/api/v1/payments';
-const SIGILOPAY_FALLBACK_ENDPOINT = 'https://api.sigilopay.com/v1/payments';
+const SIGILOPAY_ENDPOINTS = [
+  'https://app.sigilopay.com.br/api/v1/payments',
+  'https://api.sigilopay.com.br/v1/payments',
+  'https://sigilopay.com.br/api/v1/payments',
+  'https://api.sigilopay.com/v1/payments'
+];
+
 const UNIT_PRICE = 37.90; // Preço Conjunto Feminino Alfaiataria em Reais
 
 function getBaseUrl(req) {
   const proto = req.headers['x-forwarded-proto'] || 'https';
   const host = req.headers['x-forwarded-host'] || req.headers['host'] || 'localhost';
   return `${proto}://${host}`;
+}
+
+/**
+ * Gerador de Pix Estático Padrão Banco Central (BACEN / EMV BRCode)
+ * Calcula CRC16-CCITT real para ser 100% aceito em qualquer app de banco
+ */
+function generateBacenPix(pixKey, merchantName, merchantCity, amount, txid) {
+  function formatField(id, value) {
+    const len = value.length.toString().padStart(2, '0');
+    return `${id}${len}${value}`;
+  }
+  const cleanKey = pixKey.trim();
+  const name = (merchantName || 'ATELIE ALFAIATARIA').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().slice(0, 25);
+  const city = (merchantCity || 'SAO PAULO').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().slice(0, 15);
+  const formattedAmount = Number(amount).toFixed(2);
+  const cleanTxId = (txid || '***').replace(/[^a-zA-Z0-9]/g, '').slice(0, 25) || '***';
+
+  const accountInfo = formatField('00', 'br.gov.bcb.pix') + formatField('01', cleanKey);
+  let payload = 
+    formatField('00', '01') +
+    formatField('26', accountInfo) +
+    formatField('52', '0000') +
+    formatField('53', '986') +
+    formatField('54', formattedAmount) +
+    formatField('58', 'BR') +
+    formatField('59', name) +
+    formatField('60', city) +
+    formatField('62', formatField('05', cleanTxId)) +
+    '6304';
+
+  let crc = 0xFFFF;
+  for (let i = 0; i < payload.length; i++) {
+    crc ^= (payload.charCodeAt(i) << 8);
+    for (let j = 0; j < 8; j++) {
+      if ((crc & 0x8000) !== 0) {
+        crc = ((crc << 1) ^ 0x1021) & 0xFFFF;
+      } else {
+        crc = (crc << 1) & 0xFFFF;
+      }
+    }
+  }
+  const crcHex = crc.toString(16).toUpperCase().padStart(4, '0');
+  return payload + crcHex;
 }
 
 export default async function handler(req, res) {
@@ -30,7 +78,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Chaves de API da SigiloPay (com suporte a variáveis de ambiente ou credenciais padrão)
+  // Chaves de API da SigiloPay
   const clientID = (
     process.env.SIGILOPAY_PUBLIC_KEY ||
     process.env.SIGILOPAY_CLIENT_ID ||
@@ -43,6 +91,14 @@ export default async function handler(req, res) {
     process.env.SIGILOPAY_CLIENT_SECRET ||
     process.env.SECRET_KEY ||
     'xli5ckvi2hqyo9dyqqu2giu9qn6qwoyldjy38xsk0hd5fr6khywybcc3ehz2hn58'
+  ).trim();
+
+  // Chave Pix direta do lojista (opcional)
+  const directPixKey = (
+    process.env.CHAVE_PIX ||
+    process.env.PIX_KEY ||
+    process.env.CHAVE_PIX_LOJA ||
+    ''
   ).trim();
 
   const rawToken = process.env.SIGILOPAY_TOKEN || process.env.TOKEN;
@@ -85,6 +141,8 @@ export default async function handler(req, res) {
     customer: {
       name: name.trim(),
       cpf: cleanDoc,
+      taxID: cleanDoc,
+      document: cleanDoc,
       email: cleanEmail,
       phone: cleanPhone,
     },
@@ -99,79 +157,95 @@ export default async function handler(req, res) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  let response;
-  try {
-    response = await fetch(SIGILOPAY_ENDPOINT, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify(payload),
-    });
+  let gatewaySuccess = false;
+  let qrCodeText = '';
+  let qrCodeImage = '';
+  let gatewayId = `SIG_${Date.now()}`;
+  let lastError = null;
 
-    // Se o endpoint principal falhar por rota, tenta o secundário da SigiloPay
-    if (!response.ok && response.status === 404) {
-      response = await fetch(SIGILOPAY_FALLBACK_ENDPOINT, {
+  // Tenta conectar nos endpoints conhecidos da SigiloPay
+  for (const endpoint of SIGILOPAY_ENDPOINTS) {
+    try {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(payload),
       });
+
+      if (response.ok) {
+        const data = await response.json();
+        gatewayId = data.id || (data.data && data.data.id) || (data.payment && data.payment.id) || gatewayId;
+        qrCodeText =
+          data.pix_copia_e_cola ||
+          data.qr_code_text ||
+          data.qr_code ||
+          (data.data && (data.data.pix_copia_e_cola || data.data.qr_code_text || data.data.qr_code)) ||
+          (data.pix && (data.pix.code || data.pix.qrcode)) ||
+          '';
+
+        qrCodeImage =
+          data.pix_qr_code_url ||
+          data.qr_code_image ||
+          data.qr_code_base64 ||
+          (data.data && (data.data.pix_qr_code_url || data.data.qr_code_image || data.data.qr_code_base64)) ||
+          (data.pix && (data.pix.image || data.pix.qrcode_url)) ||
+          '';
+
+        if (qrCodeText) {
+          gatewaySuccess = true;
+          break;
+        }
+      } else {
+        lastError = `Status ${response.status} de ${endpoint}`;
+      }
+    } catch (err) {
+      lastError = err.message;
     }
-  } catch (err) {
-    console.error('[pix] Erro de rede ao conectar com SigiloPay:', err);
-    return res.status(502).json({
-      errorCode: 'GATEWAY_UNREACHABLE',
-      message: 'Não foi possível conectar ao gateway SigiloPay. Tente novamente.',
+  }
+
+  // Se a SigiloPay gerou o Pix com sucesso:
+  if (gatewaySuccess && qrCodeText) {
+    if (!qrCodeImage) {
+      qrCodeImage = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrCodeText)}`;
+    }
+
+    return res.status(200).json({
+      success: true,
+      transactionId: gatewayId,
+      status: 'pending',
+      amount: finalPrice,
+      pix: {
+        code: qrCodeText,
+        image: qrCodeImage,
+      },
     });
   }
 
-  let data;
-  try {
-    data = await response.json();
-  } catch {
-    return res.status(502).json({
-      errorCode: 'INVALID_GATEWAY_RESPONSE',
-      message: 'Resposta inválida do gateway SigiloPay.',
+  // Fallback: Se o lojista configurou CHAVE_PIX no .env ou se temos uma chave válida:
+  if (directPixKey) {
+    console.log('[pix] Gerando Pix padrão BACEN com chave direta:', directPixKey);
+    const validPixCode = generateBacenPix(directPixKey, 'ATELIE ALFAIATARIA', 'SAO PAULO', finalPrice, gatewayId);
+    const validQrImage = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(validPixCode)}`;
+
+    return res.status(200).json({
+      success: true,
+      transactionId: gatewayId,
+      status: 'pending',
+      amount: finalPrice,
+      pix: {
+        code: validPixCode,
+        image: validQrImage,
+      },
+      source: 'direct_bacen'
     });
   }
 
-  if (!response.ok) {
-    console.error('[pix] Erro SigiloPay:', response.status, data);
-    return res.status(response.status).json({
-      errorCode: 'GATEWAY_ERROR',
-      message: data.message || data.error || 'Erro ao gerar cobrança Pix na SigiloPay.',
-      details: data,
-    });
-  }
-
-  // Extração inteligente de dados retornados pela SigiloPay
-  const gatewayId = data.id || (data.data && data.data.id) || (data.payment && data.payment.id) || `SIG_${Date.now()}`;
-  const qrCodeText =
-    data.pix_copia_e_cola ||
-    data.qr_code_text ||
-    data.qr_code ||
-    (data.data && (data.data.pix_copia_e_cola || data.data.qr_code_text || data.data.qr_code)) ||
-    (data.pix && (data.pix.code || data.pix.qrcode)) ||
-    '';
-
-  let qrCodeImage =
-    data.pix_qr_code_url ||
-    data.qr_code_image ||
-    data.qr_code_base64 ||
-    (data.data && (data.data.pix_qr_code_url || data.data.qr_code_image || data.data.qr_code_base64)) ||
-    (data.pix && (data.pix.image || data.pix.qrcode_url)) ||
-    '';
-
-  if (!qrCodeImage && qrCodeText) {
-    qrCodeImage = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrCodeText)}`;
-  }
-
-  return res.status(200).json({
-    success: true,
-    transactionId: gatewayId,
-    status: data.status || (data.data && data.data.status) || 'pending',
-    amount: finalPrice,
-    pix: {
-      code: qrCodeText,
-      image: qrCodeImage,
-    },
+  // Caso o gateway não tenha respondido e nenhuma chave Pix manual tenha sido fornecida:
+  console.warn('[pix] Gateway SigiloPay indisponível e sem CHAVE_PIX cadastrada:', lastError);
+  return res.status(502).json({
+    success: false,
+    errorCode: 'GATEWAY_ERROR',
+    message: 'Não foi possível gerar a cobrança no momento. Verifique as credenciais da SigiloPay ou defina CHAVE_PIX no painel.',
+    details: lastError
   });
 }
