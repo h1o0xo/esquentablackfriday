@@ -24,23 +24,22 @@ function generateIdentifier() {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin',  '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-public-key, x-secret-key, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST')
     return res.status(405).json({ error: 'Method not allowed' });
 
-  const publicKey = (
-    process.env.SIGILOPAY_PUBLIC_KEY ||
-    process.env.SIGILOPAY_CLIENT_ID ||
-    'wolfaliexpress_5vvzdyprsezqivwq'
-  ).trim();
+  // Puxa diretamente das chaves configuradas na Vercel
+  const publicKey = (process.env.SIGILOPAY_PUBLIC_KEY || 'wolfaliexpress_5vvzdyprsezqivwq').trim();
+  const secretKey = (process.env.SIGILOPAY_SECRET_KEY || 'mjb7sw0cu31uusl4g91xk3p9dsfbilxmdfk53zby6gup7yqypw63t5awdad6es64').trim();
 
-  const secretKey = (
-    process.env.SIGILOPAY_SECRET_KEY ||
-    process.env.SIGILOPAY_CLIENT_SECRET ||
-    'mjb7sw0cu31uusl4g91xk3p9dsfbilxmdfk53zby6gup7yqypw63t5awdad6es64'
-  ).trim();
+  if (!publicKey || !secretKey) {
+    return res.status(500).json({
+      errorCode: 'GATEWAY_NOT_CONFIGURED',
+      message:   'Chaves da SigiloPay não configuradas na Vercel.',
+    });
+  }
 
   const {
     name,
@@ -49,20 +48,15 @@ export default async function handler(req, res) {
     document,
   } = req.body || {};
 
+  const cleanDoc   = document ? String(document).replace(/\D/g, '') : '';
   const cleanName  = (name && name.trim()) ? name.trim() : 'Cliente';
-  const cleanDoc   = (document && String(document).replace(/\D/g, '')) ? String(document).replace(/\D/g, '') : '39053344805';
   const cleanPhone = (phone && String(phone).replace(/\D/g, '')) ? String(phone).replace(/\D/g, '') : '11999999999';
-  const cleanEmail = (email && email.includes('@')) ? email.trim() : 'cliente@gmail.com';
+  const cleanEmail = (email && email.trim()) ? email.trim() : `cliente_${cleanDoc || 'pix'}@gmail.com`;
 
   const quantity   = 1;
   const amount     = UNIT_PRICE;
   const identifier = generateIdentifier();
   const callbackUrl = `${getBaseUrl(req)}/api/callback`;
-
-  const metadata = {
-    customerDoc: cleanDoc,
-    phone:       cleanPhone,
-  };
 
   const payload = {
     identifier,
@@ -82,7 +76,6 @@ export default async function handler(req, res) {
       },
     ],
     callbackUrl,
-    metadata,
   };
 
   let response;
@@ -100,7 +93,7 @@ export default async function handler(req, res) {
     console.error('[pix] Network error calling SigiloPay:', err);
     return res.status(502).json({
       errorCode: 'GATEWAY_UNREACHABLE',
-      message:   'Não foi possível conectar ao gateway de pagamento. Tente novamente.',
+      message:   'Não foi possível conectar ao gateway de pagamento.',
     });
   }
 
@@ -141,6 +134,7 @@ export default async function handler(req, res) {
   }
 
   return res.status(200).json({
+    success:       true,
     transactionId: data.transactionId || identifier,
     status:        data.status,
     identifier,
