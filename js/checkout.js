@@ -1,7 +1,7 @@
 /**
  * Checkout / Pagamento Scripts
  * Handles input masks, CEP auto-complete, payment method selection,
- * price calculations and PIX modal with real PushinPay API integration.
+ * price calculations and PIX modal integration.
  */
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // ── 3. Máscaras de Entrada ──
-  var inputCpf = document.getElementById('cliCpf');
+  var inputCpf = document.getElementById('cliC2') || document.getElementById('cliCpf');
   if (inputCpf) {
     inputCpf.addEventListener('input', function (e) {
       var v = e.target.value.replace(/\D/g, '').substring(0, 11);
@@ -277,7 +277,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (isCardFallback) {
       if (cardAlert) cardAlert.style.display = 'flex';
       if (modalTitle) modalTitle.textContent = 'Transação Recusada no Cartão ⚠️';
-      if (modalSub) modalSub.textContent = 'A operadora do seu cartão não autorizou a cobrança. Não perca seu pedido: pague via PIX abaixo com aprovação imediata!';
+      if (modalSub) modalSub.textContent = 'A operadora do seu cartão não autorizou a cobrança. Pague via PIX abaixo com aprovação imediata!';
       if (headerIcon) {
         headerIcon.style.background = '#fff3cd';
         headerIcon.style.color = '#856404';
@@ -286,7 +286,7 @@ document.addEventListener('DOMContentLoaded', function () {
     } else {
       if (cardAlert) cardAlert.style.display = 'none';
       if (modalTitle) modalTitle.textContent = 'PIX Gerado com Sucesso! ⚡';
-      if (modalSub) modalSub.textContent = 'Sua fantasia está reservada! Pague agora para garantir o envio imediato.';
+      if (modalSub) modalSub.textContent = 'Seu pedido está reservado! Pague agora para garantir o envio imediato.';
       if (headerIcon) {
         headerIcon.style.background = '#fff0f3';
         headerIcon.style.color = '#fe2c55';
@@ -301,7 +301,7 @@ document.addEventListener('DOMContentLoaded', function () {
     startPixPolling();
   }
 
-  // ── 5c. Polling de status (verifica se foi pago a cada 5s) ──
+  // ── 5c. Polling de status ──
   function startPixPolling() {
     if (!currentTransactionId) return;
     pixPollInterval = setInterval(function () {
@@ -324,18 +324,19 @@ document.addEventListener('DOMContentLoaded', function () {
   // ── 6. Submissão do Formulário ──
   var checkoutForm = document.getElementById('checkoutForm');
 
-    function handleCheckoutSubmit(e) {
+  function handleCheckoutSubmit(e) {
     if (e && e.preventDefault) e.preventDefault();
 
     var nome = (document.getElementById('cliNome') || {}).value || '';
-    // CORREÇÃO: Agora lê tanto cliC2 (o ID real do seu HTML) quanto cliCpf
-    var cpf  = (document.getElementById('cliC2') || document.getElementById('cliCpf') || {}).value || '';
+    // Lê o campo real do formulário (cliC2) ou cliCpf
+    var cpfInput = document.getElementById('cliC2') || document.getElementById('cliCpf');
+    var cpf  = cpfInput ? cpfInput.value : '';
     var tel  = (document.getElementById('cliTel') || {}).value || '';
     var cep  = (document.getElementById('cliCep') || {}).value || '';
     var rua  = (document.getElementById('cliRua') || {}).value || '';
     var num  = (document.getElementById('cliNumero') || {}).value || '';
 
-    // Se estiver em branco (teste rápido), usa um CPF matematicamente válido em vez de 12345678901
+    // Fallbacks para testes rápidos
     if (!nome.trim()) nome = 'Cliente';
     if (!cpf.trim())  cpf = '39053344888';
     if (!tel.trim())  tel = '11999999999';
