@@ -1,164 +1,157 @@
 /**
  * Vercel Serverless Function — SigiloPay Pix
  * POST /api/pix
+ *
+ * Body: { name, email, phone, document, photoName, engravedName, engravedPhrase }
+ * Env:  SIGILOPAY_PUBLIC_KEY, SIGILOPAY_SECRET_KEY
  */
 
-const SIGILOPAY_ENDPOINTS = [
-  'https://api.sigilopay.com/v1/payments',
-  'https://api.sigilopay.com/v1/transaction',
-  'https://api.sigilopay.com/v1/pix/cashIn',
-  'https://app.sigilopay.com.br/api/v1/payments',
-  'https://app.sigilopay.com.br/v1/payments',
-  'https://app.sigilopay.com.br/api/v1/transaction',
-  'https://app.sigilopay.com.br/api/v1/gateway/pay',
-  'https://sigilopay.com.br/api/v1/payments'
-];
+const SIGILOPAY_ENDPOINT = 'https://app.sigilopay.com.br/api/v1/gateway/pix/receive';
+const UNIT_PRICE = 27.00;
 
-const UNIT_PRICE = 37.90;
+// ── Produto ───────────────────────────────────────────────────────────────────
+const PRODUCT_ID   = 'colar-eternize-personalizado';
+const PRODUCT_NAME = 'Colar Eternize Personalizado — Foto + Nome';
+// ─────────────────────────────────────────────────────────────────────────────
 
 function getBaseUrl(req) {
   const proto = req.headers['x-forwarded-proto'] || 'https';
-  const host = req.headers['x-forwarded-host'] || req.headers['host'] || 'localhost';
+  const host  = req.headers['x-forwarded-host'] || req.headers['host'] || 'localhost';
   return `${proto}://${host}`;
 }
 
+function generateIdentifier() {
+  const ts   = Date.now().toString(36).toUpperCase();
+  const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
+  return `ET-${ts}-${rand}`;
+}
+
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // CORS preflight
+  res.setHeader('Access-Control-Allow-Origin',  '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-public-key, x-secret-key, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(204).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== 'POST')
+    return res.status(405).json({ error: 'Method not allowed' });
 
-  const clientID = (
-    process.env.SIGILOPAY_PUBLIC_KEY ||
-    process.env.SIGILOPAY_CLIENT_ID ||
-    'wolfaliexpress_5vvzdyprsezqivwq'
-  ).trim();
+  const publicKey = process.env.SIGILOPAY_PUBLIC_KEY;
+  const secretKey = process.env.SIGILOPAY_SECRET_KEY;
 
-  const clientSecret = (
-    process.env.SIGILOPAY_SECRET_KEY ||
-    process.env.SIGILOPAY_CLIENT_SECRET ||
-    'mjb7sw0cu31uusl4g91xk3p9dsfbilxmdfk53zby6gup7yqypw63t5awdad6es64'
-  ).trim();
-
-  const { name, email, phone, document, qty = 1, bumps = [], totalAmount, color, size } = req.body || {};
-
-  const missing = [];
-  if (!name) missing.push('name');
-  if (!document) missing.push('document');
-  if (missing.length) {
-    return res.status(400).json({ errorCode: 'MISSING_FIELDS', message: 'Campos obrigatórios ausentes.', details: missing });
-  }
-
-  const cleanDoc = String(document).replace(/\D/g, '');
-  const cleanPhone = phone ? String(phone).replace(/\D/g, '') : '11999999999';
-  const cleanEmail = email && email.includes('@') ? email.trim() : `cliente_${cleanDoc}@gmail.com`;
-
-  const quantity = Math.max(1, Math.min(10, parseInt(qty, 10) || 1));
-  const bumpsTotal = Array.isArray(bumps) ? bumps.reduce((acc, b) => acc + (parseFloat(b.price) || 0), 0) : 0;
-  const finalPrice = totalAmount ? parseFloat(totalAmount) : (UNIT_PRICE * quantity) + bumpsTotal;
-
-  const callbackUrl = `${getBaseUrl(req)}/api/callback`;
-  const bumpsDesc = Array.isArray(bumps) && bumps.length ? ` + ${bumps.map(b => b.name).join(', ')}` : '';
-  const variantStr = color ? ` - ${color} (${size || 'P'})` : '';
-  const description = `Conjunto Alfaiataria${variantStr} — ${quantity}x${bumpsDesc}`.substring(0, 100);
-
-  const payload = {
-    amount: parseFloat(finalPrice.toFixed(2)),
-    payment_method: 'pix',
-    description: description,
-    webhook_url: callbackUrl,
-    customer: {
-      name: name.trim(),
-      cpf: cleanDoc,
-      taxId: cleanDoc,
-      taxID: cleanDoc,
-      document: cleanDoc,
-      email: cleanEmail,
-      phone: cleanPhone,
-    },
-  };
-
-  const headers = {
-    'Content-Type': 'application/json',
-    'x-public-key': clientID,
-    'x-secret-key': clientSecret,
-    'Authorization': `Bearer ${clientSecret}`,
-  };
-
-  let qrCodeText = '';
-  let qrCodeImage = '';
-  let gatewayId = `SIG_${Date.now()}`;
-  let gatewaySuccess = false;
-  const attempts = [];
-
-  for (const endpoint of SIGILOPAY_ENDPOINTS) {
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(payload),
-      });
-
-      const text = await response.text().catch(() => '');
-      let data = null;
-      try { data = JSON.parse(text); } catch (_) {}
-
-      attempts.push({
-        endpoint: endpoint,
-        status: response.status,
-        body: text.substring(0, 150)
-      });
-
-      if (response.ok && data) {
-        gatewayId = data.id || (data.data && data.data.id) || gatewayId;
-        qrCodeText =
-          data.pix_copia_e_cola ||
-          data.qr_code_text ||
-          data.qr_code ||
-          (data.data && (data.data.pix_copia_e_cola || data.data.qr_code_text || data.data.qr_code)) ||
-          (data.pix && (data.pix.code || data.pix.qrcode)) ||
-          '';
-
-        qrCodeImage =
-          data.pix_qr_code_url ||
-          data.qr_code_image ||
-          data.qr_code_base64 ||
-          (data.data && (data.data.pix_qr_code_url || data.data.qr_code_image)) ||
-          (data.pix && (data.pix.image || data.pix.qrcode_url)) ||
-          '';
-
-        if (qrCodeText) {
-          gatewaySuccess = true;
-          break;
-        }
-      }
-    } catch (err) {
-      attempts.push({ endpoint: endpoint, error: err.message });
-    }
-  }
-
-  if (gatewaySuccess && qrCodeText) {
-    if (!qrCodeImage) {
-      qrCodeImage = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrCodeText)}`;
-    }
-    return res.status(200).json({
-      success: true,
-      transactionId: gatewayId,
-      status: 'pending',
-      amount: finalPrice,
-      pix: {
-        code: qrCodeText,
-        image: qrCodeImage,
-      },
+  if (!publicKey || !secretKey) {
+    console.error('[pix] Missing SIGILOPAY_PUBLIC_KEY or SIGILOPAY_SECRET_KEY');
+    return res.status(500).json({
+      errorCode: 'GATEWAY_NOT_CONFIGURED',
+      message:   'Gateway de pagamento não configurado. Entre em contato com o suporte.',
     });
   }
 
-  return res.status(502).json({
-    success: false,
-    errorCode: 'GATEWAY_ERROR',
-    message: 'SigiloPay retornou erro ou endpoint indisponível.',
-    attempts: attempts,
+  const {
+    name,
+    email,
+    phone,
+    document,
+    photoName      = '',
+    engravedName  = '',
+    engravedPhrase = '',
+  } = req.body || {};
+
+  // Validate required fields
+  const missing = [];
+  if (!name)     missing.push('name');
+  if (!email)    missing.push('email');
+  if (!phone)    missing.push('phone');
+  if (!document) missing.push('document');
+
+  if (missing.length) {
+    return res.status(400).json({
+      errorCode: 'MISSING_FIELDS',
+      message:   'Campos obrigatórios ausentes.',
+      details:   missing,
+    });
+  }
+
+  const quantity   = 1;
+  const amount     = parseFloat((UNIT_PRICE * quantity).toFixed(2));
+  const identifier = generateIdentifier();
+  const callbackUrl = `${getBaseUrl(req)}/api/callback`;
+
+  const metadata = {
+    customerDoc:    document,
+    phone,
+    photoName,
+    engravedName,
+    engravedPhrase,
+  };
+
+  const payload = {
+    identifier,
+    amount,
+    client: { name, email, phone, document },
+    products: [
+      {
+        id:        PRODUCT_ID,
+        name:      PRODUCT_NAME,
+        quantity,
+        price:     UNIT_PRICE,
+      },
+    ],
+    callbackUrl,
+    metadata,
+  };
+
+  let response;
+  try {
+    response = await fetch(SIGILOPAY_ENDPOINT, {
+      method:  'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'x-public-key':  publicKey,
+        'x-secret-key':  secretKey,
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    console.error('[pix] Network error calling SigiloPay:', err);
+    return res.status(502).json({
+      errorCode: 'GATEWAY_UNREACHABLE',
+      message:   'Não foi possível conectar ao gateway de pagamento. Tente novamente.',
+    });
+  }
+
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    return res.status(502).json({
+      errorCode: 'INVALID_GATEWAY_RESPONSE',
+      message:   'Resposta inválida do gateway.',
+    });
+  }
+
+  if (!response.ok) {
+    console.error('[pix] SigiloPay error:', response.status, data);
+    return res.status(response.status).json({
+      errorCode: data.errorCode || 'GATEWAY_ERROR',
+      message:   data.message   || 'Erro ao gerar cobrança Pix.',
+      details:   data.details,
+    });
+  }
+
+  const pixCode = data.pix?.code || null;
+  // Se o gateway não mandar a imagem pronta, geramos automaticamente via API pública de QR Code usando o copia e cola
+  const pixImage = data.pix?.image || (pixCode ? `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(pixCode)}` : null);
+
+  // Return only what the frontend needs
+  return res.status(200).json({
+    transactionId: data.transactionId,
+    status:        data.status,
+    identifier,
+    amount,
+    pix: {
+      code:  data.pix?.code || null,
+      image: null
+    },
   });
 }
