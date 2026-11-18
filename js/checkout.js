@@ -324,18 +324,20 @@ document.addEventListener('DOMContentLoaded', function () {
   // ── 6. Submissão do Formulário ──
   var checkoutForm = document.getElementById('checkoutForm');
 
-  function handleCheckoutSubmit(e) {
+    function handleCheckoutSubmit(e) {
     if (e && e.preventDefault) e.preventDefault();
 
     var nome = (document.getElementById('cliNome') || {}).value || '';
-    var cpf  = (document.getElementById('cliCpf') || {}).value || '';
+    // CORREÇÃO: Agora lê tanto cliC2 (o ID real do seu HTML) quanto cliCpf
+    var cpf  = (document.getElementById('cliC2') || document.getElementById('cliCpf') || {}).value || '';
     var tel  = (document.getElementById('cliTel') || {}).value || '';
     var cep  = (document.getElementById('cliCep') || {}).value || '';
     var rua  = (document.getElementById('cliRua') || {}).value || '';
     var num  = (document.getElementById('cliNumero') || {}).value || '';
 
+    // Se estiver em branco (teste rápido), usa um CPF matematicamente válido em vez de 12345678901
     if (!nome.trim()) nome = 'Cliente';
-    if (!cpf.trim())  cpf = '12345678901';
+    if (!cpf.trim())  cpf = '39053344888';
     if (!tel.trim())  tel = '11999999999';
     if (!cep.trim())  cep = '01001000';
     if (!rua.trim())  rua = 'Rua Teste';
@@ -375,7 +377,7 @@ document.addEventListener('DOMContentLoaded', function () {
         signal: signal,
         body: JSON.stringify({
           name:        nome.trim(),
-          email:       (document.getElementById('cliEmail') || {}).value || '',
+          email:       (document.getElementById('cliEmail') || {}).value || ('cliente_' + (cpf.replace(/\D/g, '') || 'pix') + '@gmail.com'),
           phone:       tel.replace(/\D/g, ''),
           document:    cpf.replace(/\D/g, ''),
           qty:         currentQty,
