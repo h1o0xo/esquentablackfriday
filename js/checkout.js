@@ -5,7 +5,7 @@
  */
 
 document.addEventListener('DOMContentLoaded', function () {
-  var unitPrice = 47.90;
+  var unitPrice = 37.90;
   var currentQty = 1;
   var currentTransactionId = null;
   var pixExpireInterval = null;
