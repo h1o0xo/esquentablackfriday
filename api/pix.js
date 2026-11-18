@@ -1,10 +1,13 @@
 /**
  * Vercel Serverless Function — SigiloPay Pix
  * POST /api/pix
+ *
+ * Endpoint Oficial SigiloPay Gateway:
+ * https://app.sigilopay.com.br/api/v1/gateway/pix/receive
  */
 
 const SIGILOPAY_ENDPOINT = 'https://app.sigilopay.com.br/api/v1/gateway/pix/receive';
-const UNIT_PRICE = 37.90; // Preço Conjunto Alfaiataria
+const UNIT_PRICE = 37.90; // Preço do Conjunto Feminino Alfaiataria
 
 function getBaseUrl(req) {
   const proto = req.headers['x-forwarded-proto'] || 'https';
@@ -50,39 +53,55 @@ export default async function handler(req, res) {
     size = 'P'
   } = req.body || {};
 
-  // Proteção: se o cliente não digitar algum dado, usamos fallback automático para NUNCA travar
   const cleanName  = (name && name.trim()) ? name.trim() : 'Cliente';
   const cleanDoc   = (document && String(document).replace(/\D/g, '')) ? String(document).replace(/\D/g, '') : '12345678901';
   const cleanPhone = (phone && String(phone).replace(/\D/g, '')) ? String(phone).replace(/\D/g, '') : '11999999999';
   const cleanEmail = (email && email.includes('@')) ? email.trim() : `cliente_${cleanDoc}@gmail.com`;
 
-  const quantity   = Math.max(1, Math.min(10, parseInt(qty, 10) || 1));
-  const bumpsTotal = Array.isArray(bumps) ? bumps.reduce((acc, b) => acc + (parseFloat(b.price) || 0), 0) : 0;
-  const finalPrice = totalAmount ? parseFloat(parseFloat(totalAmount).toFixed(2)) : parseFloat(((UNIT_PRICE * quantity) + bumpsTotal).toFixed(2));
+  const quantity = Math.max(1, Math.min(10, parseInt(qty, 10) || 1));
 
-  const identifier  = generateIdentifier();
-  const callbackUrl = `${getBaseUrl(req)}/api/callback`;
+  // Processa os Order Bumps se houver
+  let bumpsList = [];
+  let bumpsTotal = 0;
+  if (Array.isArray(bumps) && bumps.length > 0) {
+    bumps.forEach((b, idx) => {
+      const bPrice = parseFloat(Number(b.price || 0).toFixed(2));
+      if (bPrice > 0) {
+        bumpsTotal = parseFloat((bumpsTotal + bPrice).toFixed(2));
+        bumpsList.push({
+          id:       `bump-${idx + 1}`,
+          name:     String(b.name || `Oferta Extra ${idx + 1}`).substring(0, 60),
+          quantity: 1,
+          price:    bPrice,
+        });
+      }
+    });
+  }
 
-  // Monta produtos no formato que a SigiloPay exige
+  // Preço unitário do produto principal
+  let mainUnitPrice = UNIT_PRICE;
+  if (totalAmount) {
+    const rawTotal = parseFloat(Number(totalAmount).toFixed(2));
+    const rawMainTotal = parseFloat(Math.max(1, rawTotal - bumpsTotal).toFixed(2));
+    mainUnitPrice = parseFloat((rawMainTotal / quantity).toFixed(2));
+  }
+
   const products = [
     {
       id:       'conjunto-alfaiataria',
       name:     `Conjunto Alfaiataria (${color} - Tam ${size})`,
       quantity: quantity,
-      price:    UNIT_PRICE,
-    }
+      price:    mainUnitPrice,
+    },
+    ...bumpsList
   ];
 
-  if (Array.isArray(bumps) && bumps.length > 0) {
-    bumps.forEach((b, idx) => {
-      products.push({
-        id:       `bump-${idx + 1}`,
-        name:     b.name || `Oferta Extra ${idx + 1}`,
-        quantity: 1,
-        price:    parseFloat(b.price) || 0,
-      });
-    });
-  }
+  // Regra OBRIGATÓRIA da SigiloPay:
+  // amount DEVE ser EXATAMENTE igual à soma de (price * quantity) de todos os itens do array products
+  const amount = parseFloat(products.reduce((acc, p) => acc + (p.price * p.quantity), 0).toFixed(2));
+
+  const identifier  = generateIdentifier();
+  const callbackUrl = `${getBaseUrl(req)}/api/callback`;
 
   const metadata = {
     customerDoc: cleanDoc,
@@ -90,12 +109,12 @@ export default async function handler(req, res) {
     color,
     size,
     quantity,
-    bumpsCount:  bumps.length,
+    bumpsCount:  bumpsList.length,
   };
 
   const payload = {
     identifier,
-    amount: finalPrice,
+    amount: amount,
     client: {
       name:     cleanName,
       email:    cleanEmail,
@@ -154,7 +173,6 @@ export default async function handler(req, res) {
     (data.data && (data.data.pix?.code || data.data.pix_copia_e_cola || data.data.qr_code)) ||
     null;
 
-  // Imagem do QR Code: se a SigiloPay mandar usamos ela, senão geramos dinamicamente via QRServer
   let pixImage =
     data.pix?.image ||
     data.pix_qr_code_url ||
@@ -172,7 +190,7 @@ export default async function handler(req, res) {
     transactionId: data.transactionId || identifier,
     status:        data.status || 'pending',
     identifier,
-    amount:        finalPrice,
+    amount:        amount,
     pix: {
       code:  pixCode,
       image: pixImage,
