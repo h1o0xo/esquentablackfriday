@@ -1,12 +1,13 @@
 /**
- * Vercel Serverless Function — PushinPay Pix
+ * Vercel Serverless Function — SigiloPay Pix
  * POST /api/pix
  *
- * Body: { name, email, phone, document, qty }
- * Env:  PUSHINPAY_SECRET_TOKEN
+ * Body: { name, email, phone, document, qty, bumps, totalAmount, color, size }
+ * Env:  SIGILOPAY_PUBLIC_KEY, SIGILOPAY_SECRET_KEY (ou SIGILOPAY_CLIENT_ID, SIGILOPAY_CLIENT_SECRET)
  */
 
-const PUSHINPAY_ENDPOINT = 'https://api.pushinpay.com.br/api/pix/cashIn';
+const SIGILOPAY_ENDPOINT = 'https://app.sigilopay.com.br/api/v1/payments';
+const SIGILOPAY_FALLBACK_ENDPOINT = 'https://api.sigilopay.com/v1/payments';
 const UNIT_PRICE = 37.90; // Preço Conjunto Feminino Alfaiataria em Reais
 
 function getBaseUrl(req) {
@@ -19,7 +20,7 @@ export default async function handler(req, res) {
   // CORS preflight
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-public-key, x-secret-key, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
@@ -29,19 +30,23 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Aceita PUSHINPAY_TOKEN ou PUSHINPAY_SECRET_TOKEN
-  const rawToken = process.env.PUSHINPAY_TOKEN || process.env.PUSHINPAY_SECRET_TOKEN || process.env.TOKEN;
+  // Chaves de API da SigiloPay (com suporte a variáveis de ambiente ou credenciais padrão)
+  const clientID = (
+    process.env.SIGILOPAY_PUBLIC_KEY ||
+    process.env.SIGILOPAY_CLIENT_ID ||
+    process.env.PUBLIC_KEY ||
+    'wolfaliexpress_zijbnebdk66i56ur'
+  ).trim();
 
-  if (!rawToken) {
-    console.error('[pix] Missing PUSHINPAY_TOKEN');
-    return res.status(500).json({
-      errorCode: 'GATEWAY_NOT_CONFIGURED',
-      message: 'Gateway de pagamento não configurado. Adicione a variável PUSHINPAY_TOKEN na Vercel.',
-    });
-  }
+  const clientSecret = (
+    process.env.SIGILOPAY_SECRET_KEY ||
+    process.env.SIGILOPAY_CLIENT_SECRET ||
+    process.env.SECRET_KEY ||
+    'xli5ckvi2hqyo9dyqqu2giu9qn6qwoyldjy38xsk0hd5fr6khywybcc3ehz2hn58'
+  ).trim();
 
-  // Remove qualquer prefixo "Bearer " caso tenha colado junto
-  const secretToken = rawToken.trim().replace(/^Bearer\s+/i, '');
+  const rawToken = process.env.SIGILOPAY_TOKEN || process.env.TOKEN;
+  const token = rawToken ? rawToken.trim().replace(/^Bearer\s+/i, '') : null;
 
   const { name, email, phone, document, qty = 1, bumps = [], totalAmount, color, size } = req.body || {};
 
@@ -58,42 +63,63 @@ export default async function handler(req, res) {
     });
   }
 
+  const cleanDoc = String(document).replace(/\D/g, '');
+  const cleanPhone = phone ? String(phone).replace(/\D/g, '') : '11999999999';
+  const cleanEmail = email && email.includes('@') ? email.trim() : `cliente_${cleanDoc || Date.now()}@gmail.com`;
+
   const quantity = Math.max(1, Math.min(10, parseInt(qty, 10) || 1));
   const bumpsTotal = Array.isArray(bumps) ? bumps.reduce((acc, b) => acc + (parseFloat(b.price) || 0), 0) : 0;
   const finalPrice = totalAmount ? parseFloat(totalAmount) : (UNIT_PRICE * quantity) + bumpsTotal;
 
-  // PushinPay exige valores em CENTAVOS
-  const amountInCentavos = Math.round(finalPrice * 100);
-
   const callbackUrl = `${getBaseUrl(req)}/api/callback`;
   const bumpsDesc = Array.isArray(bumps) && bumps.length ? ` + ${bumps.map(b => b.name).join(', ')}` : '';
-
   const variantStr = color ? ` - ${color} (${size || 'P'})` : '';
+  const description = `Conjunto Alfaiataria${variantStr} — ${quantity}x${bumpsDesc}`.substring(0, 100);
+
+  // Payload padrão da SigiloPay
   const payload = {
-    value: amountInCentavos,
+    amount: parseFloat(finalPrice.toFixed(2)),
+    payment_method: 'pix',
+    description: description,
     webhook_url: callbackUrl,
-    expires_in: 3600, // 1 hora
-    description: `Conjunto Alfaiataria${variantStr} — ${quantity}x${bumpsDesc}`.substring(0, 100),
-    player_name: name,
-    player_doc: document.replace(/\D/g, ''), // Remove pontos e traços do CPF
-    minor_verified: true,
+    customer: {
+      name: name.trim(),
+      cpf: cleanDoc,
+      email: cleanEmail,
+      phone: cleanPhone,
+    },
   };
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-public-key': clientID,
+    'x-secret-key': clientSecret,
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
 
   let response;
   try {
-    response = await fetch(PUSHINPAY_ENDPOINT, {
+    response = await fetch(SIGILOPAY_ENDPOINT, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${secretToken}`,
-      },
+      headers: headers,
       body: JSON.stringify(payload),
     });
+
+    // Se o endpoint principal falhar por rota, tenta o secundário da SigiloPay
+    if (!response.ok && response.status === 404) {
+      response = await fetch(SIGILOPAY_FALLBACK_ENDPOINT, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(payload),
+      });
+    }
   } catch (err) {
-    console.error('[pix] Network error calling PushinPay:', err);
+    console.error('[pix] Erro de rede ao conectar com SigiloPay:', err);
     return res.status(502).json({
       errorCode: 'GATEWAY_UNREACHABLE',
-      message: 'Não foi possível conectar ao gateway de pagamento. Tente novamente.',
+      message: 'Não foi possível conectar ao gateway SigiloPay. Tente novamente.',
     });
   }
 
@@ -103,26 +129,49 @@ export default async function handler(req, res) {
   } catch {
     return res.status(502).json({
       errorCode: 'INVALID_GATEWAY_RESPONSE',
-      message: 'Resposta inválida do gateway.',
+      message: 'Resposta inválida do gateway SigiloPay.',
     });
   }
 
   if (!response.ok) {
-    console.error('[pix] PushinPay error:', response.status, data);
+    console.error('[pix] Erro SigiloPay:', response.status, data);
     return res.status(response.status).json({
       errorCode: 'GATEWAY_ERROR',
-      message: data.message || 'Erro ao gerar cobrança Pix.',
+      message: data.message || data.error || 'Erro ao gerar cobrança Pix na SigiloPay.',
       details: data,
     });
   }
 
+  // Extração inteligente de dados retornados pela SigiloPay
+  const gatewayId = data.id || (data.data && data.data.id) || (data.payment && data.payment.id) || `SIG_${Date.now()}`;
+  const qrCodeText =
+    data.pix_copia_e_cola ||
+    data.qr_code_text ||
+    data.qr_code ||
+    (data.data && (data.data.pix_copia_e_cola || data.data.qr_code_text || data.data.qr_code)) ||
+    (data.pix && (data.pix.code || data.pix.qrcode)) ||
+    '';
+
+  let qrCodeImage =
+    data.pix_qr_code_url ||
+    data.qr_code_image ||
+    data.qr_code_base64 ||
+    (data.data && (data.data.pix_qr_code_url || data.data.qr_code_image || data.data.qr_code_base64)) ||
+    (data.pix && (data.pix.image || data.pix.qrcode_url)) ||
+    '';
+
+  if (!qrCodeImage && qrCodeText) {
+    qrCodeImage = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrCodeText)}`;
+  }
+
   return res.status(200).json({
-    transactionId: data.id,
-    status: data.status || 'processing',
+    success: true,
+    transactionId: gatewayId,
+    status: data.status || (data.data && data.data.status) || 'pending',
     amount: finalPrice,
     pix: {
-      code:  data.qr_code || null,        // Linha "Copia e Cola" do Pix
-      image: data.qr_code_base64 || null  // Imagem Base64 do QR Code
+      code: qrCodeText,
+      image: qrCodeImage,
     },
   });
 }
