@@ -5,66 +5,7 @@
  */
 
 document.addEventListener('DOMContentLoaded', function () {
-  // ── 0. Captura Cor, Tamanho e Imagem Selecionados ──
-  var urlParams = new URLSearchParams(window.location.search);
-  var selectedColor = urlParams.get('cor') || urlParams.get('color');
-  var selectedSize = urlParams.get('tamanho') || urlParams.get('size');
-  var selectedImg = urlParams.get('img');
-
-  if (!selectedColor) {
-    try { selectedColor = localStorage.getItem('cart_color'); } catch (e) {}
-  }
-  if (!selectedSize) {
-    try { selectedSize = localStorage.getItem('cart_size'); } catch (e) {}
-  }
-  if (!selectedImg) {
-    try { selectedImg = localStorage.getItem('cart_img'); } catch (e) {}
-  }
-
-  selectedColor = selectedColor || 'Preto';
-  selectedSize = selectedSize || 'P';
-
-  var colorImgMap = {
-    'preto': 'https://i.ibb.co/6JfmSc0Z/Gemini-Generated-Image-2yedqj2yedqj2yed.jpg',
-    'marrom': 'https://i.ibb.co/9mLB2n83/Gemini-Generated-Image-kpz3r3kpz3r3kpz3.jpg',
-    'café': 'https://i.ibb.co/0p4NVX44/Gemini-Generated-Image-z5fuaez5fuaez5fu.jpg',
-    'cafe': 'https://i.ibb.co/0p4NVX44/Gemini-Generated-Image-z5fuaez5fuaez5fu.jpg',
-    'azul claro': 'https://i.ibb.co/zHTkfHp4/Gemini-Generated-Image-x17yw5x17yw5x17y.jpg',
-    'azul-claro': 'https://i.ibb.co/zHTkfHp4/Gemini-Generated-Image-x17yw5x17yw5x17y.jpg',
-    'rosa': 'https://i.ibb.co/VWz07ydz/Gemini-Generated-Image-womkx1womkx1womk.jpg',
-    'amarelo': 'https://i.ibb.co/RGDN8GM6/Gemini-Generated-Image-10d7mt10d7mt10d7.jpg',
-    'branco': 'https://i.ibb.co/kr7ct9G/Gemini-Generated-Image-iwn3mjiwn3mjiwn3.jpg',
-    'azul marinho': 'https://i.ibb.co/5WJbcRRH/Gemini-Generated-Image-9uwpy69uwpy69uwp.jpg',
-    'azul-marinho': 'https://i.ibb.co/5WJbcRRH/Gemini-Generated-Image-9uwpy69uwpy69uwp.jpg',
-    'nude': 'https://i.ibb.co/4ZWjYmkp/Gemini-Generated-Image-22gmb122gmb122gm.jpg',
-    'roxo': 'https://i.ibb.co/pjJT8wH2/Gemini-Generated-Image-3psqgq3psqgq3psq.jpg',
-    'verde claro': 'https://i.ibb.co/RGG8Q8x6/Gemini-Generated-Image-bjyjqebjyjqebjyj.jpg',
-    'verde-claro': 'https://i.ibb.co/RGG8Q8x6/Gemini-Generated-Image-bjyjqebjyjqebjyj.jpg'
-  };
-
-  var colorKey = selectedColor.trim().toLowerCase();
-  if (!selectedImg && colorImgMap[colorKey]) {
-    selectedImg = colorImgMap[colorKey];
-  } else if (!selectedImg) {
-    selectedImg = 'https://i.ibb.co/6JfmSc0Z/Gemini-Generated-Image-2yedqj2yedqj2yed.jpg';
-  }
-
-  var coProdImg = document.getElementById('coProdImg');
-  var coProdName = document.getElementById('coProdName');
-  var coProdMeta = document.getElementById('coProdMeta');
-
-  if (coProdImg) {
-    coProdImg.src = selectedImg;
-    coProdImg.alt = 'Conjunto Feminino Calça e Colete Curto Alfaiataria ' + selectedColor;
-  }
-  if (coProdName) {
-    coProdName.textContent = 'Conjunto Feminino Calça e Colete Curto Alfaiataria ' + selectedColor;
-  }
-  if (coProdMeta) {
-    coProdMeta.textContent = '✓ Cor: ' + selectedColor + ' • Tamanho: ' + selectedSize + ' • Frete Grátis • Pronta Entrega';
-  }
-
-  var unitPrice = 37.90;
+  var unitPrice = 47.90;
   var currentQty = 1;
   var currentTransactionId = null;
   var pixExpireInterval = null;
@@ -117,7 +58,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (qtyVal) qtyVal.textContent = currentQty;
 
-    // Atualiza linha de bumps no resumo de valores
     var bumpsRow = document.getElementById('breakdownBumpsRow');
     if (bumpsTotal > 0) {
       if (!bumpsRow) {
@@ -172,8 +112,8 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // ── 3. Máscaras de Entrada ──
-  var inputCpf = document.getElementById('cliCpf') || document.getElementById('cliC2');
-  if (inputCpf && !inputCpf.getAttribute('oninput')) {
+  var inputCpf = document.getElementById('cliCpf');
+  if (inputCpf) {
     inputCpf.addEventListener('input', function (e) {
       var v = e.target.value.replace(/\D/g, '').substring(0, 11);
       v = v.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
@@ -246,9 +186,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var pixPaid    = document.getElementById('pixPaid');
 
   function showPixState(state) {
-    if (pixLoading) {
-      pixLoading.style.display = (state === 'loading' ? 'flex' : 'none');
-    }
+    if (pixLoading) pixLoading.style.display = (state === 'loading' ? 'flex' : 'none');
     if (pixContent) {
       pixContent.style.display = (state === 'content' ? 'block' : 'none');
       pixContent.classList.toggle('show', state === 'content');
@@ -311,7 +249,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (amountEl) amountEl.textContent = formatBRL(data.amount || getTotalAmount());
 
-    var pixCode = (data.pix && data.pix.code) ? data.pix.code : '00020126580014br.gov.bcb.pix0136d8f1e29c-7b4a-4d2e-9c12-3a8e9b0c1d2e5204000053039865405' + Math.round(data.amount || getTotalAmount()) + '.005802BR5925FANTASIA GHOSTFACE HALLOW6009SAO PAULO62070503***6304E8A2';
+    var pixCode = (data.pix && data.pix.code) ? data.pix.code : '';
 
     if (codeEl) codeEl.textContent = pixCode;
 
@@ -348,9 +286,7 @@ document.addEventListener('DOMContentLoaded', function () {
     } else {
       if (cardAlert) cardAlert.style.display = 'none';
       if (modalTitle) modalTitle.textContent = 'PIX Gerado com Sucesso! ⚡';
-      if (modalSub) modalSub.textContent = 'Seu Conjunto Feminino de Alfaiataria (' + selectedColor + ' · Tam ' + selectedSize + ') está reservado! Pague agora para garantir o envio imediato.';
-      var paidSubEl = document.querySelector('.pix-paid-sub');
-      if (paidSubEl) paidSubEl.textContent = 'Seu Conjunto Feminino de Alfaiataria (' + selectedColor + ' · Tam ' + selectedSize + ') está a caminho! Você receberá o código de rastreamento em breve via WhatsApp.';
+      if (modalSub) modalSub.textContent = 'Sua fantasia está reservada! Pague agora para garantir o envio imediato.';
       if (headerIcon) {
         headerIcon.style.background = '#fff0f3';
         headerIcon.style.color = '#fe2c55';
@@ -392,14 +328,13 @@ document.addEventListener('DOMContentLoaded', function () {
     if (e && e.preventDefault) e.preventDefault();
 
     var nome = (document.getElementById('cliNome') || {}).value || '';
-    var cpf  = (document.getElementById('cliC2') || document.getElementById('cliCpf') || {}).value || '';
+    var cpf  = (document.getElementById('cliCpf') || {}).value || '';
     var tel  = (document.getElementById('cliTel') || {}).value || '';
     var cep  = (document.getElementById('cliCep') || {}).value || '';
     var rua  = (document.getElementById('cliRua') || {}).value || '';
     var num  = (document.getElementById('cliNumero') || {}).value || '';
 
-    // Se estiver em branco (teste direto), preenche valores de demonstração para nunca travar a abertura
-    if (!nome.trim()) nome = 'Cliente Black Friday';
+    if (!nome.trim()) nome = 'Cliente';
     if (!cpf.trim())  cpf = '12345678901';
     if (!tel.trim())  tel = '11999999999';
     if (!cep.trim())  cep = '01001000';
@@ -410,7 +345,6 @@ document.addEventListener('DOMContentLoaded', function () {
     var method = activeMethod ? activeMethod.getAttribute('data-method') : 'pix';
     var isCard = (method === 'cartao');
 
-    // Abre o pop-up instantaneamente
     openPixModal();
 
     var loadingText = document.querySelector('.pix-loading-text');
@@ -426,8 +360,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var bumps = getSelectedBumps();
     var finalTotal = getTotalAmount();
-
-    // Delay de simulação realista para cartão
     var requestDelay = isCard ? 1200 : 300;
 
     setTimeout(function () {
@@ -435,9 +367,8 @@ document.addEventListener('DOMContentLoaded', function () {
       var signal = controller ? controller.signal : undefined;
       var apiTimeout = setTimeout(function () {
         if (controller) controller.abort();
-      }, 3500);
+      }, 15000);
 
-      // Chama a API /api/pix
       fetch('/api/pix', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -450,42 +381,40 @@ document.addEventListener('DOMContentLoaded', function () {
           qty:         currentQty,
           bumps:       bumps,
           totalAmount: finalTotal,
-          color:       selectedColor,
-          size:        selectedSize,
         }),
       })
         .then(function (r) {
           clearTimeout(apiTimeout);
-          if (!r.ok) throw new Error('API status ' + r.status);
-          return r.json();
+          return r.json().then(function (data) {
+            if (!r.ok || !data.success || !data.pix || !data.pix.code) {
+              throw new Error(data.message || ('Erro ' + r.status));
+            }
+            return data;
+          });
         })
         .then(function (data) {
           renderPix(data, isCard);
         })
         .catch(function (err) {
           clearTimeout(apiTimeout);
-          console.warn('[checkout] Aviso API PushinPay:', err);
-          // O pop-up exibe o PIX gerado com QR Code dinâmico instantaneamente
-          renderPix({
-            transactionId: 'TX_' + Date.now(),
-            amount: finalTotal,
-            pix: {
-              code: '00020126580014br.gov.bcb.pix0136d8f1e29c-7b4a-4d2e-9c12-3a8e9b0c1d2e5204000053039865405' + Math.round(finalTotal) + '.005802BR5925FANTASIA GHOSTFACE HALLOW6009SAO PAULO62070503***6304E8A2',
-              image: null
-            }
-          }, isCard);
+          console.warn('[checkout] Erro ao gerar Pix:', err);
+          var loadingText = document.querySelector('.pix-loading-text');
+          var loadingSub  = document.querySelector('.pix-loading-sub');
+          if (loadingText) loadingText.textContent = 'Atenção ⚠️';
+          if (loadingSub) loadingSub.innerHTML =
+            'Não foi possível gerar o PIX no momento.<br>' +
+            '<span style="font-size:12px;color:#888;">Tente fechar e gerar novamente.</span><br><br>' +
+            '<button type="button" onclick="document.getElementById(\'pixOverlay\').style.display=\'none\'" ' +
+            'style="background:#fe2c55;color:#fff;border:none;padding:10px 22px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;">' +
+            'Fechar e tentar novamente</button>';
         });
     }, requestDelay);
   }
 
-  if (checkoutForm) {
-    checkoutForm.addEventListener('submit', handleCheckoutSubmit);
-  }
+  if (checkoutForm) checkoutForm.addEventListener('submit', handleCheckoutSubmit);
 
   var btnFinalizar = document.getElementById('btnFinalizar');
-  if (btnFinalizar) {
-    btnFinalizar.addEventListener('click', handleCheckoutSubmit);
-  }
+  if (btnFinalizar) btnFinalizar.addEventListener('click', handleCheckoutSubmit);
 
   // ── 7. Botões do Modal PIX ──
   var pixCloseBtn = document.getElementById('pixClose');
@@ -513,7 +442,6 @@ document.addEventListener('DOMContentLoaded', function () {
           }, 2500);
         });
       } else {
-        // Fallback para navegadores antigos
         var ta = document.createElement('textarea');
         ta.value = code;
         ta.style.position = 'fixed';
@@ -535,7 +463,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!currentTransactionId) {
         pixCheckBtn.disabled = false;
         pixCheckBtn.textContent = 'Já paguei — verificar pagamento';
-        showPixState('paid'); // fallback: mostra confirmado (em produção, verificar via API)
+        showPixState('paid');
         return;
       }
       fetch('/api/callback', {
@@ -555,14 +483,12 @@ document.addEventListener('DOMContentLoaded', function () {
           }
         })
         .catch(function () {
-          // Se offline, confia no usuário
           stopPixTimers();
           showPixState('paid');
         });
     });
   }
 
-  // Fechar ao clicar no fundo
   if (pixOverlay) {
     pixOverlay.addEventListener('click', function (e) {
       if (e.target === pixOverlay) closePixModal();
