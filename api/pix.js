@@ -4,8 +4,13 @@
  */
 
 const SIGILOPAY_ENDPOINTS = [
-  'https://app.sigilopay.com.br/api/v1/payments',
   'https://api.sigilopay.com/v1/payments',
+  'https://api.sigilopay.com/v1/transaction',
+  'https://api.sigilopay.com/v1/pix/cashIn',
+  'https://app.sigilopay.com.br/api/v1/payments',
+  'https://app.sigilopay.com.br/v1/payments',
+  'https://app.sigilopay.com.br/api/v1/transaction',
+  'https://app.sigilopay.com.br/api/v1/gateway/pay',
   'https://sigilopay.com.br/api/v1/payments'
 ];
 
@@ -25,7 +30,6 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Credenciais Oficiais SigiloPay
   const clientID = (
     process.env.SIGILOPAY_PUBLIC_KEY ||
     process.env.SIGILOPAY_CLIENT_ID ||
@@ -87,7 +91,7 @@ export default async function handler(req, res) {
   let qrCodeImage = '';
   let gatewayId = `SIG_${Date.now()}`;
   let gatewaySuccess = false;
-  let lastError = null;
+  const attempts = [];
 
   for (const endpoint of SIGILOPAY_ENDPOINTS) {
     try {
@@ -97,8 +101,17 @@ export default async function handler(req, res) {
         body: JSON.stringify(payload),
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      const text = await response.text().catch(() => '');
+      let data = null;
+      try { data = JSON.parse(text); } catch (_) {}
+
+      attempts.push({
+        endpoint: endpoint,
+        status: response.status,
+        body: text.substring(0, 150)
+      });
+
+      if (response.ok && data) {
         gatewayId = data.id || (data.data && data.data.id) || gatewayId;
         qrCodeText =
           data.pix_copia_e_cola ||
@@ -120,12 +133,9 @@ export default async function handler(req, res) {
           gatewaySuccess = true;
           break;
         }
-      } else {
-        const errBody = await response.text().catch(() => '');
-        lastError = `Status ${response.status}: ${errBody.substring(0, 100)}`;
       }
     } catch (err) {
-      lastError = err.message;
+      attempts.push({ endpoint: endpoint, error: err.message });
     }
   }
 
@@ -149,6 +159,6 @@ export default async function handler(req, res) {
     success: false,
     errorCode: 'GATEWAY_ERROR',
     message: 'SigiloPay retornou erro ou endpoint indisponível.',
-    details: lastError,
+    attempts: attempts,
   });
 }
