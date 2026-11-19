@@ -253,12 +253,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (codeEl) codeEl.textContent = pixCode;
 
-    var qrSrc = '';
-    if (data.pix && data.pix.image && data.pix.image.trim().length > 20) {
+        var qrSrc = '';
+    if (data.pix && data.pix.image && data.pix.image.trim().length > 5) {
       var rawImg = data.pix.image.trim();
-      qrSrc = rawImg.startsWith('data:') ? rawImg : ('data:image/png;base64,' + rawImg);
+      // Se já for URL da web (http/https) ou data-uri, usa direto sem quebrar
+      if (rawImg.startsWith('http://') || rawImg.startsWith('https://') || rawImg.startsWith('data:')) {
+        qrSrc = rawImg;
+      } else {
+        qrSrc = 'data:image/png;base64,' + rawImg;
+      }
     } else if (pixCode) {
-      qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=4&data=' + encodeURIComponent(pixCode);
+      qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=4&data=' + encodeURIComponent(pixCode);
     }
 
     if (qrImg && qrSrc) {
